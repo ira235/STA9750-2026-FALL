@@ -1,0 +1,34 @@
+---
+title: "Ira Rahman"
+---
+
+I'm an M.S. in Business Analytics candidate at Baruch College (expected 2026) with 4+ years in sales analytics and revenue operations.
+
+My work sits where sales strategy meets data: incentive compensation, pipeline reporting, CRM optimization, and self-serve dashboards that let sales teams answer their own questions. I've done this at RNDC in wine and spirits distribution and at JTI in consumer goods.
+
+I'm PL-300 certified in Power BI and hold Salesforce credentials. This site collects my coursework for STA 9750.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+if(!require("leaflet")){
+    options(repos=c(CRAN="https://cloud.r-project.org"))
+    install.packages("leaflet")
+    stopifnot(require("leaflet"))
+}
+
+baruch_longitude <- -73.98333
+baruch_latitude  <- +40.74028
+
+leaflet() |>
+  addTiles() |>
+  setView(baruch_longitude, baruch_latitude, zoom=17) |>
+  addPopups(baruch_longitude, baruch_latitude,
+            "M.S. in Business Analytics at <b>Baruch College</b>")
+```
+
+--------------
+Last Updated: `r format(Sys.time(), "%A %m %d, %Y at %H:%M%p")`
+
