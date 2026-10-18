@@ -1,5 +1,12 @@
 ---
 title: "Ira Rahman"
+about:
+  template: trestles
+  image: headshot.jpg
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/irarahmanny/
 ---
 
 I'm an M.S. in Business Analytics candidate at Baruch College (expected 2026) with 4+ years in sales analytics and revenue operations.
