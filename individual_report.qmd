@@ -1,0 +1,499 @@
+---
+title: "Crude Awakening, SQ1: How Do Oil Price Changes Affect Consumer Behavior in Retail and Grocery?"
+author: "Noshin Rahman"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    toc: true
+    df-print: kable
+execute:
+  warning: false
+  message: false
+---
+
+## Setup
+
+This report is fully reproducible. The first chunk installs any missing packages,
+and all data are pulled from the FRED API at render time (then cached locally in
+`data/sq1/` so re-renders are fast).
+
+**API key:** the FRED API needs a free key
+(<https://fred.stlouisfed.org/docs/api/api_key.html>). The key is read from the
+environment variable `FRED_API_KEY` and is never written in this file. If no key
+is found, the code falls back to FRED's public CSV download so it still runs on
+any machine.
+
+```{r}
+#| label: setup
+
+required_pkgs <- c("tidyverse", "httr2", "lubridate", "scales", "gt")
+missing_pkgs  <- setdiff(required_pkgs, rownames(installed.packages()))
+if (length(missing_pkgs) > 0) install.packages(missing_pkgs)
+invisible(lapply(required_pkgs, library, character.only = TRUE))
+
+theme_set(theme_minimal(base_size = 12))
+
+DATA_DIR   <- file.path("data", "sq1")   # relative path, no setwd()
+START_DATE <- "2021-01-01"               # gives the 2022 spike a pre-shock baseline and YoY history
+dir.create(DATA_DIR, showWarnings = FALSE, recursive = TRUE)
+```
+
+## Data Acquisition
+
+```{r}
+#| label: fred-helper
+
+#' Download one FRED series, caching it as a CSV.
+#'
+#' @param series_id FRED series ID, e.g. "RSGCS"
+#' @param start     first observation date (YYYY-MM-DD)
+#' @param refresh   TRUE forces a fresh download even if a cached file exists
+#' @return tibble with columns date, value, series_id
+get_fred_series <- function(series_id, start = START_DATE, refresh = FALSE) {
+  # Start date is part of the file name, so changing START_DATE triggers a fresh download
+  cache_file <- file.path(DATA_DIR, paste0(series_id, "_", start, ".csv"))
+
+  if (file.exists(cache_file) && !refresh) {
+    return(read_csv(cache_file, show_col_types = FALSE))
+  }
+
+  api_key <- Sys.getenv("FRED_API_KEY")
+
+  if (nzchar(api_key)) {
+    # Preferred path: official FRED web API
+    obs <- request("https://api.stlouisfed.org/fred/series/observations") |>
+      req_url_query(
+        series_id         = series_id,
+        api_key           = api_key,
+        file_type         = "json",
+        observation_start = start
+      ) |>
+      req_retry(max_tries = 3) |>
+      req_perform() |>
+      resp_body_json() |>
+      pluck("observations")
+
+    out <- tibble(
+      date  = map_chr(obs, "date"),
+      value = map_chr(obs, "value")
+    )
+  } else {
+    # Fallback: public CSV endpoint (no key needed)
+    message("FRED_API_KEY not set; using public CSV for ", series_id)
+    out <- read_csv(
+      paste0("https://fred.stlouisfed.org/graph/fredgraph.csv?id=", series_id),
+      col_types = cols(.default = "c")
+    )
+    names(out) <- c("date", "value")
+  }
+
+  out <- out |>
+    mutate(
+      date      = as_date(date),
+      value     = suppressWarnings(as.numeric(value)),  # FRED codes missing as "."
+      series_id = series_id
+    ) |>
+    filter(date >= as_date(start))
+
+  write_csv(out, cache_file)
+  out
+}
+```
+
+The series below cover the three pieces of SQ1: the oil and gas price "shock,"
+grocery spending, and broader retail spending. Restaurant sales (SQ2) and
+revolving credit (SQ3) are left to teammates to avoid overlap.
+
+```{r}
+#| label: series-list
+
+sq1_series <- tribble(
+  ~series_id,       ~label,                                   ~group,
+  "MCOILWTICO",     "WTI crude oil ($/barrel, monthly)",      "Energy prices",
+  "GASREGW",        "Regular gasoline ($/gallon, weekly)",    "Energy prices",
+  "RSGCS",          "Retail sales: grocery stores ($M)",      "Spending",
+  "RSXFS",          "Retail sales: total retail trade ($M)",  "Spending",
+  "RSGASS",         "Retail sales: gasoline stations ($M)",   "Spending",
+  "RSGMS",          "Retail sales: general merchandise ($M)", "Spending",
+  "CUSR0000SAF11",  "CPI: food at home (SA)",                 "Prices",
+  "CPIAUCSL",       "CPI: all items (SA)",                    "Prices"
+)
+
+raw <- map(sq1_series$series_id, get_fred_series) |>
+  list_rbind() |>
+  left_join(sq1_series, by = "series_id")
+```
+
+## Data Preparation
+
+Gasoline prices are weekly, everything else is monthly, so weekly prices are
+averaged to months before joining.
+
+BLS did not publish CPI for October 2025 because of the federal government
+shutdown. Without CPI, real (inflation-adjusted) spending can't be computed for
+that month, so the gap is filled by linear interpolation between September and
+November 2025. CPI moves slowly month to month, so this introduces very little
+error. Only interior gaps are filled: months after the latest CPI release stay
+missing rather than being extrapolated.
+
+```{r}
+#| label: monthly
+
+#' Linearly interpolate interior gaps in a monthly series (no extrapolation).
+interp_monthly <- function(x, month) {
+  approx(as.numeric(month), x, xout = as.numeric(month), rule = 1)$y
+}
+
+monthly_long <- raw |>
+  mutate(month = floor_date(date, "month")) |>
+  group_by(series_id, label, group, month) |>
+  summarize(
+    n_obs = sum(!is.na(value)),
+    value = mean(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+sq1 <- monthly_long |>
+  select(month, series_id, value) |>
+  pivot_wider(names_from = series_id, values_from = value) |>
+  arrange(month) |>
+  mutate(
+    # Flag months where CPI was filled in, then fill interior gaps
+    cpi_interpolated = is.na(CPIAUCSL) & month < max(month[!is.na(CPIAUCSL)]),
+    across(c(CPIAUCSL, CUSR0000SAF11), ~ interp_monthly(.x, month))
+  ) |>
+  mutate(
+    # Retail spending excluding gas stations, so higher pump prices
+    # don't mechanically inflate "retail"
+    nongas_retail      = RSXFS - RSGASS,
+    gas_share_retail   = RSGASS / RSXFS,
+    # Real (inflation-adjusted) spending, index base = CPI units
+    real_grocery       = RSGCS / CUSR0000SAF11 * 100,
+    real_nongas_retail = nongas_retail / CPIAUCSL * 100,
+    # Year-over-year % changes (strip out seasonality)
+    across(
+      c(GASREGW, MCOILWTICO, real_grocery, real_nongas_retail, RSGMS),
+      ~ .x / lag(.x, 12) - 1,
+      .names = "{.col}_yoy"
+    )
+  )
+```
+
+## Data Quality Checks
+
+```{r}
+#| label: quality
+
+monthly_long |>
+  arrange(series_id, month) |>
+  group_by(label) |>
+  summarize(
+    first_month = min(month),
+    last_month  = max(month),
+    n_months    = n(),
+    n_missing   = sum(is.na(value)),
+    repeated    = sum(value == lag(value), na.rm = TRUE)  # flags issues like identical Aug/Sep values
+  ) |>
+  gt() |>
+  cols_label(
+    label = "Series", first_month = "First", last_month = "Last",
+    n_months = "Months", n_missing = "Missing", repeated = "Repeated values"
+  ) |>
+  fmt_date(c(first_month, last_month), date_style = "yMMM") |>
+  tab_header(title = "SQ1 data coverage")
+```
+
+## First Look
+
+```{r}
+#| label: first-look
+#| fig-width: 9
+#| fig-height: 5
+
+sq1 |>
+  filter(month >= as_date("2023-01-01")) |>
+  select(month, GASREGW, real_grocery, real_nongas_retail) |>
+  pivot_longer(-month) |>
+  group_by(name) |>
+  mutate(index = value / value[month == as_date("2025-01-01")] * 100) |>
+  ungroup() |>
+  mutate(name = recode(
+    name,
+    GASREGW            = "Gas price",
+    real_grocery       = "Real grocery sales",
+    real_nongas_retail = "Real non-gas retail sales"
+  )) |>
+  ggplot(aes(month, index, color = name)) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey60") +
+  geom_line(linewidth = 1) +
+  labs(
+    title    = "Gas prices vs. real retail and grocery spending",
+    subtitle = "Indexed to January 2025 = 100",
+    x = NULL, y = "Index", color = NULL,
+    caption  = "Source: FRED (EIA, U.S. Census Bureau, BLS)"
+  ) +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: interp-check
+
+sq1 |>
+  filter(cpi_interpolated) |>
+  select(month, CPIAUCSL, CUSR0000SAF11) |>
+  gt() |>
+  fmt_date(month, date_style = "yMMM") |>
+  fmt_number(c(CPIAUCSL, CUSR0000SAF11), decimals = 1) |>
+  cols_label(month = "Month", CPIAUCSL = "CPI: all items",
+             CUSR0000SAF11 = "CPI: food at home") |>
+  tab_header(title = "Interpolated CPI values",
+             subtitle = "Not published due to the October 2025 government shutdown")
+```
+
+## Two Oil Shocks: 2022 vs. 2026
+
+The 2022 spike, driven by Russia's invasion of Ukraine, is a natural benchmark
+for 2026. Lining the two episodes up on a common clock shows whether consumers
+reacted differently this time.
+
+**Defining each episode.** Rather than picking dates by eye, each episode is
+defined from the data: the *peak* is the month with the highest gas price in
+that calendar year, and the *baseline* is the lowest-priced month in the six
+months before the peak (the "calm before the shock"). Every series is then
+indexed to its baseline month = 100, and time is measured in months since
+baseline.
+
+```{r}
+#| label: episodes
+
+#' Locate an oil-shock episode in a given year.
+#'
+#' @param data     monthly data with columns month and GASREGW
+#' @param yr       calendar year containing the spike
+#' @param lookback months before the peak to search for the baseline
+#' @return one-row tibble: episode, baseline, peak
+find_episode <- function(data, yr, lookback = 6) {
+  peak <- data |>
+    filter(year(month) == yr, !is.na(GASREGW)) |>
+    slice_max(GASREGW, n = 1, with_ties = FALSE) |>
+    pull(month)
+
+  baseline <- data |>
+    filter(month < peak, month >= peak %m-% months(lookback), !is.na(GASREGW)) |>
+    slice_min(GASREGW, n = 1, with_ties = FALSE) |>
+    pull(month)
+
+  tibble(episode = paste(yr, "spike"), baseline = baseline, peak = peak)
+}
+
+#' Whole months from `from` to `to` (negative if `to` is earlier).
+months_between <- function(from, to) {
+  (year(to) - year(from)) * 12 + (month(to) - month(from))
+}
+
+episodes <- map(c(2022, 2026), \(y) find_episode(sq1, y)) |> list_rbind()
+
+measure_labels <- c(
+  GASREGW            = "Gas price",
+  real_grocery       = "Real grocery sales",
+  real_nongas_retail = "Real non-gas retail sales"
+)
+
+event_data <- episodes |>
+  cross_join(sq1 |> select(month, all_of(names(measure_labels)))) |>
+  mutate(
+    event_month = months_between(baseline, month),
+    peak_month  = months_between(baseline, peak)
+  ) |>
+  filter(between(event_month, -3, 9)) |>
+  pivot_longer(all_of(names(measure_labels)), names_to = "measure") |>
+  group_by(episode, measure) |>
+  mutate(index = value / value[event_month == 0] * 100) |>
+  ungroup() |>
+  mutate(measure = factor(measure_labels[measure], levels = measure_labels))
+
+episodes |>
+  mutate(months_to_peak = months_between(baseline, peak)) |>
+  gt() |>
+  fmt_date(c(baseline, peak), date_style = "yMMM") |>
+  cols_label(episode = "Episode", baseline = "Baseline month",
+             peak = "Peak month", months_to_peak = "Months to peak") |>
+  tab_header(title = "Oil-shock episodes identified from gas prices")
+```
+
+```{r}
+#| label: episode-plot
+#| fig-width: 10
+#| fig-height: 4.5
+
+ggplot(event_data, aes(event_month, index, color = episode)) +
+  geom_hline(yintercept = 100, linetype = "dashed", color = "grey60") +
+  geom_vline(xintercept = 0, color = "grey80") +
+  geom_line(linewidth = 1, na.rm = TRUE) +
+  geom_point(size = 1.4, na.rm = TRUE) +
+  facet_wrap(~ measure, scales = "free_y") +
+  scale_color_manual(values = c("2022 spike" = "#8C8C8C", "2026 spike" = "#D1495B")) +
+  scale_x_continuous(breaks = seq(-3, 9, 3)) +
+  labs(
+    title    = "Same shock, same response? Spending around the 2022 and 2026 gas spikes",
+    subtitle = "Each series indexed to its pre-shock baseline month = 100",
+    x = "Months since baseline", y = "Index (baseline = 100)", color = NULL,
+    caption  = "Source: FRED (EIA, U.S. Census Bureau, BLS). Real sales deflated by CPI."
+  ) +
+  theme(legend.position = "top", strip.text = element_text(face = "bold"))
+```
+
+```{r}
+#| label: episode-table
+
+event_data |>
+  group_by(episode, measure) |>
+  summarize(
+    at_peak  = first(index[event_month == first(peak_month)]) / 100 - 1,
+    post3    = first(index[event_month == first(peak_month) + 3]) / 100 - 1,
+    .groups  = "drop"
+  ) |>
+  gt(groupname_col = "episode") |>
+  fmt_percent(c(at_peak, post3), decimals = 1, force_sign = TRUE) |>
+  sub_missing(missing_text = "not yet available") |>
+  cols_label(measure = "", at_peak = "At gas peak",
+             post3 = "3 months after peak") |>
+  tab_header(title = "Change from pre-shock baseline")
+```
+
+## How Sensitive Is Spending to Gas Prices?
+
+The episode comparison is descriptive. To put a number (and an uncertainty
+range) on the relationship, I regress the year-over-year change in real spending
+on the year-over-year change in gas prices, using every month from 2022 onward.
+
+The slope reads as: *for every 1 percentage point faster gas price growth, real
+spending growth changes by β percentage points.* A negative β means higher gas
+prices crowd out other spending.
+
+**Controlling for inflation.** Food inflation was far higher in 2022 than in
+2026, so a raw comparison could mistake grocery price pressure for a gas effect.
+The grocery model controls for food-at-home CPI inflation, and the retail model
+controls for headline CPI inflation.
+
+```{r}
+#| label: regression-data
+
+reg_data <- sq1 |>
+  mutate(
+    food_cpi_yoy = CUSR0000SAF11 / lag(CUSR0000SAF11, 12) - 1,
+    cpi_yoy      = CPIAUCSL / lag(CPIAUCSL, 12) - 1
+  ) |>
+  select(month, GASREGW_yoy, real_grocery_yoy, real_nongas_retail_yoy,
+         food_cpi_yoy, cpi_yoy) |>
+  drop_na()
+
+models <- tibble(
+  outcome = c("Real grocery sales", "Real non-gas retail sales"),
+  formula = list(
+    real_grocery_yoy       ~ GASREGW_yoy + food_cpi_yoy,
+    real_nongas_retail_yoy ~ GASREGW_yoy + cpi_yoy
+  )
+)
+
+#' Fit every model in `models` and return the gas-price slope for each.
+fit_gas_slopes <- function(d) {
+  models |>
+    mutate(gas_slope = map_dbl(formula, \(f) coef(lm(f, data = d))[["GASREGW_yoy"]])) |>
+    select(outcome, gas_slope)
+}
+
+point_estimates <- fit_gas_slopes(reg_data)
+```
+
+**Why a block bootstrap?** Standard regression confidence intervals assume each
+month is independent, but economic data are autocorrelated: this month looks a
+lot like last month. Resampling individual months would break that structure
+and make the estimates look more precise than they really are. A *moving block
+bootstrap* instead resamples consecutive 6-month blocks, keeping short-run
+dynamics intact. I draw 2,000 bootstrap samples and refit both models on each.
+
+```{r}
+#| label: block-bootstrap
+
+#' Draw one moving-block bootstrap sample of the rows of `d`.
+#'
+#' @param d         data frame ordered in time
+#' @param block_len length of each resampled block (months)
+block_bootstrap_sample <- function(d, block_len = 6) {
+  n        <- nrow(d)
+  n_blocks <- ceiling(n / block_len)
+  starts   <- sample(seq_len(n - block_len + 1), n_blocks, replace = TRUE)
+  idx      <- as.vector(outer(0:(block_len - 1), starts, `+`))[seq_len(n)]
+  d[idx, ]
+}
+
+set.seed(9750)
+N_BOOT <- 2000
+
+boot_slopes <- map(seq_len(N_BOOT), \(b) {
+  fit_gas_slopes(block_bootstrap_sample(reg_data)) |> mutate(draw = b)
+}) |>
+  list_rbind()
+
+boot_summary <- boot_slopes |>
+  group_by(outcome) |>
+  summarize(
+    ci_low    = quantile(gas_slope, 0.025),
+    ci_high   = quantile(gas_slope, 0.975),
+    share_neg = mean(gas_slope < 0),
+    .groups   = "drop"
+  ) |>
+  left_join(point_estimates, by = "outcome") |>
+  mutate(effect_50 = gas_slope * 0.5) |>   # implied effect of a 50% gas price rise
+  relocate(gas_slope, .after = outcome)
+```
+
+```{r}
+#| label: bootstrap-table
+
+boot_summary |>
+  gt() |>
+  fmt_number(c(gas_slope, ci_low, ci_high), decimals = 3) |>
+  fmt_percent(c(share_neg, effect_50), decimals = 1) |>
+  cols_merge(c(ci_low, ci_high), pattern = "[{1}, {2}]") |>
+  cols_label(
+    outcome   = "",
+    gas_slope = "Gas slope (β)",
+    ci_low    = "95% block-bootstrap CI",
+    share_neg = "Share of draws below 0",
+    effect_50 = "Implied effect of a 50% gas rise"
+  ) |>
+  tab_header(
+    title    = "Sensitivity of real spending growth to gas price growth",
+    subtitle = "Monthly YoY changes, 2022 onward; 2,000 moving-block bootstrap draws"
+  ) |>
+  tab_footnote("Grocery model controls for food-at-home CPI inflation; retail model controls for headline CPI inflation.")
+```
+
+```{r}
+#| label: bootstrap-plot
+#| fig-width: 9
+#| fig-height: 4
+
+ggplot(boot_slopes, aes(gas_slope)) +
+  geom_histogram(bins = 50, fill = "#D1495B", alpha = 0.75) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  geom_vline(data = point_estimates, aes(xintercept = gas_slope),
+             linewidth = 1, color = "black") +
+  facet_wrap(~ outcome, scales = "free") +
+  labs(
+    title    = "How certain is the gas-price effect?",
+    subtitle = "Distribution of 2,000 block-bootstrap slope estimates (black line = full-sample estimate)",
+    x = "Gas slope (β)", y = "Bootstrap draws",
+    caption  = "Source: FRED (EIA, U.S. Census Bureau, BLS)"
+  ) +
+  theme(strip.text = element_text(face = "bold"))
+```
+
+**Reading the results.** If the 95% interval excludes zero, the data support a
+real gas-price effect on that category of spending. If it straddles zero, gas
+price swings of the size seen since 2022 have not measurably moved real spending
+once inflation is accounted for, which would itself be a meaningful finding for
+the overarching question.
