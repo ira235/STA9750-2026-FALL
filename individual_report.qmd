@@ -12,6 +12,41 @@ execute:
   message: false
 ---
 
+## Background and Motivation
+
+Our team's overarching question is: **How did the 2026 rise in oil prices
+influence U.S. consumer spending and transportation?** Each teammate takes one
+channel through which an oil shock reaches households: restaurant spending,
+credit card use, vehicle miles traveled, and public transit ridership. My
+question covers the largest channel of all: **how do oil price changes affect
+consumer behavior in retail and grocery?**
+
+The intuition is simple. Gasoline is a hard-to-avoid expense. Most people
+still have to drive to work and to the store when prices jump, so every extra
+dollar spent at the pump is a dollar that can't be spent somewhere else. If that
+squeeze is real, it should show up first in retail and grocery, the two biggest
+categories of everyday spending. Grocery is especially interesting because it
+is semi-essential: households can trade down (store brands, fewer extras) but
+cannot stop buying food.
+
+Prior work gives mixed signals. Gelman et al. (2023), using detailed household
+transaction data, find that gasoline price changes significantly affect how
+households spend. Aglar (2026) finds that gasoline price shocks in California
+were associated with reduced retail and food spending. On the other hand, the
+Kansas City Fed (2021) describes a link between oil prices and consumer spending
+that has *evolved* over time, as U.S. oil production roughly doubled over two
+decades and the economy became less dependent on imported oil. Whether a large
+shock still bites in 2026 is an open, empirical question.
+
+I approach it in three steps:
+
+1. **Describe** how real (inflation-adjusted) retail and grocery spending moved
+   as gas prices rose in 2026.
+2. **Benchmark** the 2026 episode against the 2022 spike, the most recent
+   comparable shock.
+3. **Quantify** the relationship with a regression that controls for inflation,
+   using a block bootstrap to measure uncertainty honestly.
+
 ## Setup
 
 This report is fully reproducible. The first chunk installs any missing packages,
@@ -104,6 +139,24 @@ get_fred_series <- function(series_id, start = START_DATE, refresh = FALSE) {
 The series below cover the three pieces of SQ1: the oil and gas price "shock,"
 grocery spending, and broader retail spending. Restaurant sales (SQ2) and
 revolving credit (SQ3) are left to teammates to avoid overlap.
+
+**Where the data come from.** All series are retrieved through FRED, but each
+originates with a federal statistical agency:
+
+- **Retail sales** come from the U.S. Census Bureau's *Advance Monthly Retail
+  Trade Survey*, a sample of retail firms benchmarked to the larger Monthly
+  Retail Trade Survey. Values are monthly, in millions of dollars, seasonally
+  adjusted. The most recent months are advance estimates and get revised as
+  fuller survey data arrive.
+- **Gasoline prices** come from the EIA's weekly survey of retail gasoline
+  stations, reported as a national average price per gallon of regular.
+- **WTI crude** is the monthly average spot price of the U.S. benchmark crude.
+- **Consumer prices** come from the BLS Consumer Price Index (seasonally
+  adjusted), used here to convert dollar sales into real quantities.
+
+Nominal sales alone would be misleading. If grocery prices rise 5% and grocery
+sales rise 5%, households bought the same amount of food. Deflating by CPI turns
+"dollars spent" into "stuff bought," which is the behavior SQ1 cares about.
 
 ```{r}
 #| label: series-list
@@ -236,6 +289,12 @@ sq1 |>
   theme(legend.position = "top")
 ```
 
+The first look already hints at the answer. Gas prices swing widely, with a
+modest bump in 2023 to 2024 and a sharp spike in spring 2026, while both real
+spending lines stay within a few percent of their January 2025 level throughout.
+Visually, there is no obvious mirror image where spending dips whenever gas
+spikes. The rest of the report tests whether that impression holds up.
+
 ```{r}
 #| label: interp-check
 
@@ -347,13 +406,15 @@ ggplot(event_data, aes(event_month, index, color = episode)) +
 ```{r}
 #| label: episode-table
 
-event_data |>
+episode_summary <- event_data |>
   group_by(episode, measure) |>
   summarize(
     at_peak  = first(index[event_month == first(peak_month)]) / 100 - 1,
     post3    = first(index[event_month == first(peak_month) + 3]) / 100 - 1,
     .groups  = "drop"
-  ) |>
+  )
+
+episode_summary |>
   gt(groupname_col = "episode") |>
   fmt_percent(c(at_peak, post3), decimals = 1, force_sign = TRUE) |>
   sub_missing(missing_text = "not yet available") |>
@@ -361,6 +422,51 @@ event_data |>
              post3 = "3 months after peak") |>
   tab_header(title = "Change from pre-shock baseline")
 ```
+
+```{r}
+#| label: inline-helpers
+#| echo: false
+
+# Small helpers so the narrative below pulls numbers straight from the analysis
+pct_signed <- scales::label_percent(accuracy = 0.1, style_positive = "plus")
+pct        <- scales::label_percent(accuracy = 0.1)
+
+ep_val <- function(ep, meas, col) {
+  episode_summary |>
+    filter(episode == ep, measure == meas) |>
+    pull({{ col }})
+}
+
+# Food-at-home inflation (YoY) at each episode's gas peak
+food_infl_at_peak <- sq1 |>
+  mutate(food_yoy = CUSR0000SAF11 / lag(CUSR0000SAF11, 12) - 1) |>
+  inner_join(episodes, by = c("month" = "peak")) |>
+  select(episode, food_yoy)
+
+food_infl <- function(ep) {
+  food_infl_at_peak |> filter(episode == ep) |> pull(food_yoy)
+}
+```
+
+Three patterns stand out. First, **the 2026 shock was the larger of the two**:
+gas prices peaked `r pct_signed(ep_val("2026 spike", "Gas price", at_peak))`
+above their pre-shock baseline, compared with
+`r pct_signed(ep_val("2022 spike", "Gas price", at_peak))` in 2022. Second,
+**despite the bigger shock, grocery spending held up better**. Three months
+after the peak, real grocery sales were
+`r pct_signed(ep_val("2026 spike", "Real grocery sales", post3))` from baseline
+in 2026, versus `r pct_signed(ep_val("2022 spike", "Real grocery sales", post3))`
+in 2022. Third, **real non-gas retail barely moved in either episode**
+(`r pct_signed(ep_val("2022 spike", "Real non-gas retail sales", post3))` in
+2022 and `r pct_signed(ep_val("2026 spike", "Real non-gas retail sales", post3))`
+in 2026, three months after the peak).
+
+The 2022 grocery decline needs a careful reading. Food-at-home prices were
+rising `r pct(food_infl("2022 spike"))` year over year at the 2022 gas peak,
+compared with `r pct(food_infl("2026 spike"))` at the 2026 peak. Real grocery
+sales fall whenever grocery prices outpace dollar spending, whether or not gas
+is involved. The episode view can't separate the two forces, which motivates
+the regression below.
 
 ## How Sensitive Is Spending to Gas Prices?
 
@@ -372,8 +478,9 @@ The slope reads as: *for every 1 percentage point faster gas price growth, real
 spending growth changes by β percentage points.* A negative β means higher gas
 prices crowd out other spending.
 
-**Controlling for inflation.** Food inflation was far higher in 2022 than in
-2026, so a raw comparison could mistake grocery price pressure for a gas effect.
+**Controlling for inflation.** Food inflation can differ a lot from one episode
+to the next, so a raw comparison could mistake grocery price pressure for a gas
+effect.
 The grocery model controls for food-at-home CPI inflation, and the retail model
 controls for headline CPI inflation.
 
@@ -492,8 +599,110 @@ ggplot(boot_slopes, aes(gas_slope)) +
   theme(strip.text = element_text(face = "bold"))
 ```
 
-**Reading the results.** If the 95% interval excludes zero, the data support a
-real gas-price effect on that category of spending. If it straddles zero, gas
-price swings of the size seen since 2022 have not measurably moved real spending
-once inflation is accounted for, which would itself be a meaningful finding for
-the overarching question.
+```{r}
+#| label: boot-helpers
+#| echo: false
+
+bs <- function(out, col) {
+  boot_summary |> filter(outcome == out) |> pull({{ col }})
+}
+num3 <- function(x) sprintf("%.3f", x)
+```
+
+**Reading the results.** For grocery, the gas slope is
+`r num3(bs("Real grocery sales", gas_slope))`, with a 95% interval of
+[`r num3(bs("Real grocery sales", ci_low))`,
+`r num3(bs("Real grocery sales", ci_high))`]. For non-gas retail, it is
+`r num3(bs("Real non-gas retail sales", gas_slope))`
+[`r num3(bs("Real non-gas retail sales", ci_low))`,
+`r num3(bs("Real non-gas retail sales", ci_high))`]. Both intervals include
+zero. In plain terms: once inflation is accounted for, months with faster gas
+price growth did not have measurably weaker real retail or grocery spending.
+Taken at face value, a 50% rise in gas prices implies a change of
+`r pct_signed(bs("Real grocery sales", effect_50))` in real grocery growth and
+`r pct_signed(bs("Real non-gas retail sales", effect_50))` in real non-gas
+retail growth, and the uncertainty is wide enough that "no effect" remains
+entirely plausible.
+
+If anything, the estimates lean slightly *positive*, especially for retail,
+where `r pct(1 - bs("Real non-gas retail sales", share_neg))` of bootstrap
+draws fall above zero. I don't read that as gas prices boosting spending. A
+more plausible story is a shared driver: when the economy runs hot, demand for
+gasoline and demand for goods rise together, pushing gas prices and retail
+sales in the same direction. This model controls for inflation but not for the
+business cycle, so it can't rule out that confounding.
+
+## Limitations
+
+Several features of the data and design limit how far these results can be
+pushed:
+
+- **National totals hide who is cutting back.** The studies that find clear
+  spending cuts, such as Gelman et al. (2023) and Aglar (2026), work with
+  household-level or state-level data. A national total can stay flat even if
+  lower-income households cut grocery trips while higher-income households
+  barely notice the pump. My null result is about the *average* consumer, not
+  every consumer.
+- **Correlation, not causation.** Gas prices are not randomly assigned. They
+  rise when global demand is strong, which is also when U.S. spending tends to
+  be strong. Without a business-cycle control or a natural experiment, the
+  slope mixes the true crowd-out effect with that shared upswing.
+- **A short, still-unfolding sample.** The regression rests on roughly
+  `r nrow(reg_data)` monthly observations, and the 2026 aftermath is only
+  partly observed. Recent retail figures are advance estimates that will be
+  revised, so the latest months could still move.
+- **Measurement choices.** October 2025 CPI is interpolated, not observed.
+  Non-gas retail is deflated by headline CPI, which includes energy prices
+  and slightly overstates the price growth of non-energy goods. The episode
+  rule (lowest gas price in the six months before the peak) is a reasonable
+  convention, but a different window would shift the baselines somewhat.
+
+## Conclusion: What SQ1 Means for the Overarching Question
+
+The 2026 oil shock was large: gas prices rose more than in 2022, the most
+recent comparable episode. Yet at the national level, I find **no measurable
+crowd-out of real retail or grocery spending**. Grocery spending dipped briefly
+and recovered, non-gas retail barely moved, and once inflation is controlled
+for, the relationship between gas price growth and real spending growth is
+statistically indistinguishable from zero. The steep grocery decline in 2022
+looks more like a food inflation story than a gas story.
+
+For the team's overarching question, this result is useful precisely because
+it rules out the most obvious channel. If households paid substantially more
+for gas without buying less at stores, the money had to come from somewhere,
+and the other specific questions test where: cutting back on dining out (SQ2),
+financing the gap with credit cards (SQ3), or adjusting how much they drive and
+whether they switch to transit (SQ4 and SQ5). SQ1 establishes the baseline: in
+2026, the average American consumer absorbed the pump shock without visibly
+pulling back on everyday retail and grocery purchases.
+
+## Future Work
+
+With more time, I would extend this analysis in four directions:
+
+1. **Go below the national level.** State retail sales or card-spending data
+   broken out by income would show whether the flat national total masks real
+   cutbacks among lower-income households, which is where prior research finds
+   the strongest effects.
+2. **Control for the business cycle.** Adding unemployment or real income
+   growth to the regression would help separate true crowd-out from the shared
+   upswing that pushes gas prices and spending up together.
+3. **Use a longer history.** Including the 2008, 2011, and 2014 oil episodes
+   would show whether consumers have become less sensitive to gas prices over
+   time, directly testing the "evolving link" described by the Kansas City Fed.
+4. **Revisit the 2026 aftermath.** Once revised retail figures cover a full
+   year after the peak, the episode comparison can be completed rather than
+   cut off partway through.
+
+## References
+
+- Aglar (2026). *Gasoline price shocks and consumer spending: Evidence from
+  household purchases.* Working paper.
+- Federal Reserve Bank of Kansas City (2021). *The Evolving Link between Oil
+  Prices and U.S. Consumer Spending.*
+- Gelman, M., et al. (2023). The response of consumer spending to changes in
+  gasoline prices. *American Economic Journal: Macroeconomics.*
+- Federal Reserve Bank of St. Louis. FRED, Federal Reserve Economic Data.
+  Series: MCOILWTICO, GASREGW, RSGCS, RSXFS, RSGASS, RSGMS, CUSR0000SAF11,
+  CPIAUCSL.
+

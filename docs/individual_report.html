@@ -138,12 +138,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#background-and-motivation" id="toc-background-and-motivation" class="nav-link active" data-scroll-target="#background-and-motivation">Background and Motivation</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
   <li><a href="#data-acquisition" id="toc-data-acquisition" class="nav-link" data-scroll-target="#data-acquisition">Data Acquisition</a></li>
   <li><a href="#data-preparation" id="toc-data-preparation" class="nav-link" data-scroll-target="#data-preparation">Data Preparation</a></li>
   <li><a href="#data-quality-checks" id="toc-data-quality-checks" class="nav-link" data-scroll-target="#data-quality-checks">Data Quality Checks</a></li>
   <li><a href="#first-look" id="toc-first-look" class="nav-link" data-scroll-target="#first-look">First Look</a></li>
   <li><a href="#two-oil-shocks-2022-vs.-2026" id="toc-two-oil-shocks-2022-vs.-2026" class="nav-link" data-scroll-target="#two-oil-shocks-2022-vs.-2026">Two Oil Shocks: 2022 vs.&nbsp;2026</a></li>
+  <li><a href="#how-sensitive-is-spending-to-gas-prices" id="toc-how-sensitive-is-spending-to-gas-prices" class="nav-link" data-scroll-target="#how-sensitive-is-spending-to-gas-prices">How Sensitive Is Spending to Gas Prices?</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations">Limitations</a></li>
+  <li><a href="#conclusion-what-sq1-means-for-the-overarching-question" id="toc-conclusion-what-sq1-means-for-the-overarching-question" class="nav-link" data-scroll-target="#conclusion-what-sq1-means-for-the-overarching-question">Conclusion: What SQ1 Means for the Overarching Question</a></li>
+  <li><a href="#future-work" id="toc-future-work" class="nav-link" data-scroll-target="#future-work">Future Work</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
 </nav>
     </div>
@@ -175,6 +181,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
+<section id="background-and-motivation" class="level2">
+<h2 class="anchored" data-anchor-id="background-and-motivation">Background and Motivation</h2>
+<p>Our team’s overarching question is: <strong>How did the 2026 rise in oil prices influence U.S. consumer spending and transportation?</strong> Each teammate takes one channel through which an oil shock reaches households: restaurant spending, credit card use, vehicle miles traveled, and public transit ridership. My question covers the largest channel of all: <strong>how do oil price changes affect consumer behavior in retail and grocery?</strong></p>
+<p>The intuition is simple. Gasoline is a hard-to-avoid expense. Most people still have to drive to work and to the store when prices jump, so every extra dollar spent at the pump is a dollar that can’t be spent somewhere else. If that squeeze is real, it should show up first in retail and grocery, the two biggest categories of everyday spending. Grocery is especially interesting because it is semi-essential: households can trade down (store brands, fewer extras) but cannot stop buying food.</p>
+<p>Prior work gives mixed signals. Gelman et al.&nbsp;(2023), using detailed household transaction data, find that gasoline price changes significantly affect how households spend. Aglar (2026) finds that gasoline price shocks in California were associated with reduced retail and food spending. On the other hand, the Kansas City Fed (2021) describes a link between oil prices and consumer spending that has <em>evolved</em> over time, as U.S. oil production roughly doubled over two decades and the economy became less dependent on imported oil. Whether a large shock still bites in 2026 is an open, empirical question.</p>
+<p>I approach it in three steps:</p>
+<ol type="1">
+<li><strong>Describe</strong> how real (inflation-adjusted) retail and grocery spending moved as gas prices rose in 2026.</li>
+<li><strong>Benchmark</strong> the 2026 episode against the 2022 spike, the most recent comparable shock.</li>
+<li><strong>Quantify</strong> the relationship with a regression that controls for inflation, using a block bootstrap to measure uncertainty honestly.</li>
+</ol>
+</section>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <p>This report is fully reproducible. The first chunk installs any missing packages, and all data are pulled from the FRED API at render time (then cached locally in <code>data/sq1/</code> so re-renders are fast).</p>
@@ -258,6 +276,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </details>
 </div>
 <p>The series below cover the three pieces of SQ1: the oil and gas price “shock,” grocery spending, and broader retail spending. Restaurant sales (SQ2) and revolving credit (SQ3) are left to teammates to avoid overlap.</p>
+<p><strong>Where the data come from.</strong> All series are retrieved through FRED, but each originates with a federal statistical agency:</p>
+<ul>
+<li><strong>Retail sales</strong> come from the U.S. Census Bureau’s <em>Advance Monthly Retail Trade Survey</em>, a sample of retail firms benchmarked to the larger Monthly Retail Trade Survey. Values are monthly, in millions of dollars, seasonally adjusted. The most recent months are advance estimates and get revised as fuller survey data arrive.</li>
+<li><strong>Gasoline prices</strong> come from the EIA’s weekly survey of retail gasoline stations, reported as a national average price per gallon of regular.</li>
+<li><strong>WTI crude</strong> is the monthly average spot price of the U.S. benchmark crude.</li>
+<li><strong>Consumer prices</strong> come from the BLS Consumer Price Index (seasonally adjusted), used here to convert dollar sales into real quantities.</li>
+</ul>
+<p>Nominal sales alone would be misleading. If grocery prices rise 5% and grocery sales rise 5%, households bought the same amount of food. Deflating by CPI turns “dollars spent” into “stuff bought,” which is the behavior SQ1 cares about.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -351,23 +377,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_header</span>(<span class="at">title =</span> <span class="st">"SQ1 data coverage"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="urcwlnxbfg" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#urcwlnxbfg table {
+<div id="pmmdptbxty" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#pmmdptbxty table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#urcwlnxbfg thead, #urcwlnxbfg tbody, #urcwlnxbfg tfoot, #urcwlnxbfg tr, #urcwlnxbfg td, #urcwlnxbfg th {
+#pmmdptbxty thead, #pmmdptbxty tbody, #pmmdptbxty tfoot, #pmmdptbxty tr, #pmmdptbxty td, #pmmdptbxty th {
   border-style: none;
 }
 
-#urcwlnxbfg p {
+#pmmdptbxty p {
   margin: 0;
   padding: 0;
 }
 
-#urcwlnxbfg .gt_table {
+#pmmdptbxty .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -393,12 +419,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_caption {
+#pmmdptbxty .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#urcwlnxbfg .gt_title {
+#pmmdptbxty .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -410,7 +436,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#urcwlnxbfg .gt_subtitle {
+#pmmdptbxty .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -422,7 +448,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#urcwlnxbfg .gt_heading {
+#pmmdptbxty .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -434,13 +460,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_bottom_border {
+#pmmdptbxty .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_col_headings {
+#pmmdptbxty .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -455,7 +481,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_col_heading {
+#pmmdptbxty .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -475,7 +501,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#urcwlnxbfg .gt_column_spanner_outer {
+#pmmdptbxty .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -487,15 +513,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#urcwlnxbfg .gt_column_spanner_outer:first-child {
+#pmmdptbxty .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#urcwlnxbfg .gt_column_spanner_outer:last-child {
+#pmmdptbxty .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#urcwlnxbfg .gt_column_spanner {
+#pmmdptbxty .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -507,11 +533,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#urcwlnxbfg .gt_spanner_row {
+#pmmdptbxty .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#urcwlnxbfg .gt_group_heading {
+#pmmdptbxty .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -537,7 +563,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#urcwlnxbfg .gt_empty_group_heading {
+#pmmdptbxty .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -552,15 +578,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#urcwlnxbfg .gt_from_md > :first-child {
+#pmmdptbxty .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#urcwlnxbfg .gt_from_md > :last-child {
+#pmmdptbxty .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#urcwlnxbfg .gt_row {
+#pmmdptbxty .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -579,7 +605,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#urcwlnxbfg .gt_stub {
+#pmmdptbxty .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -592,7 +618,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#urcwlnxbfg .gt_stub_row_group {
+#pmmdptbxty .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -606,15 +632,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#urcwlnxbfg .gt_row_group_first td {
+#pmmdptbxty .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#urcwlnxbfg .gt_row_group_first th {
+#pmmdptbxty .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#urcwlnxbfg .gt_summary_row {
+#pmmdptbxty .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -624,16 +650,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#urcwlnxbfg .gt_first_summary_row {
+#pmmdptbxty .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_first_summary_row.thick {
+#pmmdptbxty .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#urcwlnxbfg .gt_last_summary_row {
+#pmmdptbxty .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -643,7 +669,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_grand_summary_row {
+#pmmdptbxty .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -653,7 +679,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#urcwlnxbfg .gt_first_grand_summary_row {
+#pmmdptbxty .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -663,7 +689,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_last_grand_summary_row_top {
+#pmmdptbxty .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -673,11 +699,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_striped {
+#pmmdptbxty .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#urcwlnxbfg .gt_table_body {
+#pmmdptbxty .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -686,7 +712,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_footnotes {
+#pmmdptbxty .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -700,7 +726,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_footnote {
+#pmmdptbxty .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -709,7 +735,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#urcwlnxbfg .gt_sourcenotes {
+#pmmdptbxty .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -723,7 +749,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#urcwlnxbfg .gt_sourcenote {
+#pmmdptbxty .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -731,72 +757,72 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#urcwlnxbfg .gt_left {
+#pmmdptbxty .gt_left {
   text-align: left;
 }
 
-#urcwlnxbfg .gt_center {
+#pmmdptbxty .gt_center {
   text-align: center;
 }
 
-#urcwlnxbfg .gt_right {
+#pmmdptbxty .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#urcwlnxbfg .gt_font_normal {
+#pmmdptbxty .gt_font_normal {
   font-weight: normal;
 }
 
-#urcwlnxbfg .gt_font_bold {
+#pmmdptbxty .gt_font_bold {
   font-weight: bold;
 }
 
-#urcwlnxbfg .gt_font_italic {
+#pmmdptbxty .gt_font_italic {
   font-style: italic;
 }
 
-#urcwlnxbfg .gt_super {
+#pmmdptbxty .gt_super {
   font-size: 65%;
 }
 
-#urcwlnxbfg .gt_footnote_marks {
+#pmmdptbxty .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#urcwlnxbfg .gt_asterisk {
+#pmmdptbxty .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#urcwlnxbfg .gt_indent_1 {
+#pmmdptbxty .gt_indent_1 {
   text-indent: 5px;
 }
 
-#urcwlnxbfg .gt_indent_2 {
+#pmmdptbxty .gt_indent_2 {
   text-indent: 10px;
 }
 
-#urcwlnxbfg .gt_indent_3 {
+#pmmdptbxty .gt_indent_3 {
   text-indent: 15px;
 }
 
-#urcwlnxbfg .gt_indent_4 {
+#pmmdptbxty .gt_indent_4 {
   text-indent: 20px;
 }
 
-#urcwlnxbfg .gt_indent_5 {
+#pmmdptbxty .gt_indent_5 {
   text-indent: 25px;
 }
 
-#urcwlnxbfg .katex-display {
+#pmmdptbxty .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#urcwlnxbfg div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#pmmdptbxty div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -924,6 +950,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p>The first look already hints at the answer. Gas prices swing widely, with a modest bump in 2023 to 2024 and a sharp spike in spring 2026, while both real spending lines stay within a few percent of their January 2025 level throughout. Visually, there is no obvious mirror image where spending dips whenever gas spikes. The rest of the report tests whether that impression holds up.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Show code</summary>
@@ -939,23 +966,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>             <span class="at">subtitle =</span> <span class="st">"Not published due to the October 2025 government shutdown"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="ajdtmjzjxl" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ajdtmjzjxl table {
+<div id="zaigqlbciw" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#zaigqlbciw table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ajdtmjzjxl thead, #ajdtmjzjxl tbody, #ajdtmjzjxl tfoot, #ajdtmjzjxl tr, #ajdtmjzjxl td, #ajdtmjzjxl th {
+#zaigqlbciw thead, #zaigqlbciw tbody, #zaigqlbciw tfoot, #zaigqlbciw tr, #zaigqlbciw td, #zaigqlbciw th {
   border-style: none;
 }
 
-#ajdtmjzjxl p {
+#zaigqlbciw p {
   margin: 0;
   padding: 0;
 }
 
-#ajdtmjzjxl .gt_table {
+#zaigqlbciw .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -981,12 +1008,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_caption {
+#zaigqlbciw .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ajdtmjzjxl .gt_title {
+#zaigqlbciw .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -998,7 +1025,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#ajdtmjzjxl .gt_subtitle {
+#zaigqlbciw .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1010,7 +1037,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#ajdtmjzjxl .gt_heading {
+#zaigqlbciw .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1022,13 +1049,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_bottom_border {
+#zaigqlbciw .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_col_headings {
+#zaigqlbciw .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1043,7 +1070,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_col_heading {
+#zaigqlbciw .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1063,7 +1090,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#ajdtmjzjxl .gt_column_spanner_outer {
+#zaigqlbciw .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1075,15 +1102,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#ajdtmjzjxl .gt_column_spanner_outer:first-child {
+#zaigqlbciw .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ajdtmjzjxl .gt_column_spanner_outer:last-child {
+#zaigqlbciw .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ajdtmjzjxl .gt_column_spanner {
+#zaigqlbciw .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1095,11 +1122,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#ajdtmjzjxl .gt_spanner_row {
+#zaigqlbciw .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ajdtmjzjxl .gt_group_heading {
+#zaigqlbciw .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1125,7 +1152,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#ajdtmjzjxl .gt_empty_group_heading {
+#zaigqlbciw .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1140,15 +1167,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#ajdtmjzjxl .gt_from_md > :first-child {
+#zaigqlbciw .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ajdtmjzjxl .gt_from_md > :last-child {
+#zaigqlbciw .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ajdtmjzjxl .gt_row {
+#zaigqlbciw .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1167,7 +1194,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#ajdtmjzjxl .gt_stub {
+#zaigqlbciw .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1180,7 +1207,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#ajdtmjzjxl .gt_stub_row_group {
+#zaigqlbciw .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1194,15 +1221,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#ajdtmjzjxl .gt_row_group_first td {
+#zaigqlbciw .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ajdtmjzjxl .gt_row_group_first th {
+#zaigqlbciw .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ajdtmjzjxl .gt_summary_row {
+#zaigqlbciw .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1212,16 +1239,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#ajdtmjzjxl .gt_first_summary_row {
+#zaigqlbciw .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_first_summary_row.thick {
+#zaigqlbciw .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ajdtmjzjxl .gt_last_summary_row {
+#zaigqlbciw .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1231,7 +1258,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_grand_summary_row {
+#zaigqlbciw .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1241,7 +1268,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#ajdtmjzjxl .gt_first_grand_summary_row {
+#zaigqlbciw .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1251,7 +1278,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_last_grand_summary_row_top {
+#zaigqlbciw .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1261,11 +1288,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_striped {
+#zaigqlbciw .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#ajdtmjzjxl .gt_table_body {
+#zaigqlbciw .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1274,7 +1301,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_footnotes {
+#zaigqlbciw .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1288,7 +1315,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_footnote {
+#zaigqlbciw .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1297,7 +1324,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#ajdtmjzjxl .gt_sourcenotes {
+#zaigqlbciw .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1311,7 +1338,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#ajdtmjzjxl .gt_sourcenote {
+#zaigqlbciw .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1319,72 +1346,72 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#ajdtmjzjxl .gt_left {
+#zaigqlbciw .gt_left {
   text-align: left;
 }
 
-#ajdtmjzjxl .gt_center {
+#zaigqlbciw .gt_center {
   text-align: center;
 }
 
-#ajdtmjzjxl .gt_right {
+#zaigqlbciw .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ajdtmjzjxl .gt_font_normal {
+#zaigqlbciw .gt_font_normal {
   font-weight: normal;
 }
 
-#ajdtmjzjxl .gt_font_bold {
+#zaigqlbciw .gt_font_bold {
   font-weight: bold;
 }
 
-#ajdtmjzjxl .gt_font_italic {
+#zaigqlbciw .gt_font_italic {
   font-style: italic;
 }
 
-#ajdtmjzjxl .gt_super {
+#zaigqlbciw .gt_super {
   font-size: 65%;
 }
 
-#ajdtmjzjxl .gt_footnote_marks {
+#zaigqlbciw .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ajdtmjzjxl .gt_asterisk {
+#zaigqlbciw .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ajdtmjzjxl .gt_indent_1 {
+#zaigqlbciw .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ajdtmjzjxl .gt_indent_2 {
+#zaigqlbciw .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ajdtmjzjxl .gt_indent_3 {
+#zaigqlbciw .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ajdtmjzjxl .gt_indent_4 {
+#zaigqlbciw .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ajdtmjzjxl .gt_indent_5 {
+#zaigqlbciw .gt_indent_5 {
   text-indent: 25px;
 }
 
-#ajdtmjzjxl .katex-display {
+#zaigqlbciw .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#ajdtmjzjxl div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#zaigqlbciw div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -1478,23 +1505,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_header</span>(<span class="at">title =</span> <span class="st">"Oil-shock episodes identified from gas prices"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="vylkfktcyu" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#vylkfktcyu table {
+<div id="tafgzkppuk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#tafgzkppuk table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#vylkfktcyu thead, #vylkfktcyu tbody, #vylkfktcyu tfoot, #vylkfktcyu tr, #vylkfktcyu td, #vylkfktcyu th {
+#tafgzkppuk thead, #tafgzkppuk tbody, #tafgzkppuk tfoot, #tafgzkppuk tr, #tafgzkppuk td, #tafgzkppuk th {
   border-style: none;
 }
 
-#vylkfktcyu p {
+#tafgzkppuk p {
   margin: 0;
   padding: 0;
 }
 
-#vylkfktcyu .gt_table {
+#tafgzkppuk .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1520,12 +1547,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_caption {
+#tafgzkppuk .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#vylkfktcyu .gt_title {
+#tafgzkppuk .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1537,7 +1564,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#vylkfktcyu .gt_subtitle {
+#tafgzkppuk .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1549,7 +1576,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#vylkfktcyu .gt_heading {
+#tafgzkppuk .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1561,13 +1588,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_bottom_border {
+#tafgzkppuk .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_col_headings {
+#tafgzkppuk .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1582,7 +1609,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_col_heading {
+#tafgzkppuk .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1602,7 +1629,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#vylkfktcyu .gt_column_spanner_outer {
+#tafgzkppuk .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1614,15 +1641,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#vylkfktcyu .gt_column_spanner_outer:first-child {
+#tafgzkppuk .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#vylkfktcyu .gt_column_spanner_outer:last-child {
+#tafgzkppuk .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#vylkfktcyu .gt_column_spanner {
+#tafgzkppuk .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1634,11 +1661,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#vylkfktcyu .gt_spanner_row {
+#tafgzkppuk .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#vylkfktcyu .gt_group_heading {
+#tafgzkppuk .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1664,7 +1691,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#vylkfktcyu .gt_empty_group_heading {
+#tafgzkppuk .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1679,15 +1706,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#vylkfktcyu .gt_from_md > :first-child {
+#tafgzkppuk .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#vylkfktcyu .gt_from_md > :last-child {
+#tafgzkppuk .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#vylkfktcyu .gt_row {
+#tafgzkppuk .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1706,7 +1733,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#vylkfktcyu .gt_stub {
+#tafgzkppuk .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1719,7 +1746,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#vylkfktcyu .gt_stub_row_group {
+#tafgzkppuk .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1733,15 +1760,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#vylkfktcyu .gt_row_group_first td {
+#tafgzkppuk .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#vylkfktcyu .gt_row_group_first th {
+#tafgzkppuk .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#vylkfktcyu .gt_summary_row {
+#tafgzkppuk .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1751,16 +1778,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#vylkfktcyu .gt_first_summary_row {
+#tafgzkppuk .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_first_summary_row.thick {
+#tafgzkppuk .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#vylkfktcyu .gt_last_summary_row {
+#tafgzkppuk .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1770,7 +1797,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_grand_summary_row {
+#tafgzkppuk .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1780,7 +1807,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#vylkfktcyu .gt_first_grand_summary_row {
+#tafgzkppuk .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1790,7 +1817,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_last_grand_summary_row_top {
+#tafgzkppuk .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1800,11 +1827,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_striped {
+#tafgzkppuk .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#vylkfktcyu .gt_table_body {
+#tafgzkppuk .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1813,7 +1840,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_footnotes {
+#tafgzkppuk .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1827,7 +1854,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_footnote {
+#tafgzkppuk .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1836,7 +1863,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#vylkfktcyu .gt_sourcenotes {
+#tafgzkppuk .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1850,7 +1877,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#vylkfktcyu .gt_sourcenote {
+#tafgzkppuk .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1858,72 +1885,72 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#vylkfktcyu .gt_left {
+#tafgzkppuk .gt_left {
   text-align: left;
 }
 
-#vylkfktcyu .gt_center {
+#tafgzkppuk .gt_center {
   text-align: center;
 }
 
-#vylkfktcyu .gt_right {
+#tafgzkppuk .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#vylkfktcyu .gt_font_normal {
+#tafgzkppuk .gt_font_normal {
   font-weight: normal;
 }
 
-#vylkfktcyu .gt_font_bold {
+#tafgzkppuk .gt_font_bold {
   font-weight: bold;
 }
 
-#vylkfktcyu .gt_font_italic {
+#tafgzkppuk .gt_font_italic {
   font-style: italic;
 }
 
-#vylkfktcyu .gt_super {
+#tafgzkppuk .gt_super {
   font-size: 65%;
 }
 
-#vylkfktcyu .gt_footnote_marks {
+#tafgzkppuk .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#vylkfktcyu .gt_asterisk {
+#tafgzkppuk .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#vylkfktcyu .gt_indent_1 {
+#tafgzkppuk .gt_indent_1 {
   text-indent: 5px;
 }
 
-#vylkfktcyu .gt_indent_2 {
+#tafgzkppuk .gt_indent_2 {
   text-indent: 10px;
 }
 
-#vylkfktcyu .gt_indent_3 {
+#tafgzkppuk .gt_indent_3 {
   text-indent: 15px;
 }
 
-#vylkfktcyu .gt_indent_4 {
+#tafgzkppuk .gt_indent_4 {
   text-indent: 20px;
 }
 
-#vylkfktcyu .gt_indent_5 {
+#tafgzkppuk .gt_indent_5 {
   text-indent: 25px;
 }
 
-#vylkfktcyu .katex-display {
+#tafgzkppuk .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#vylkfktcyu div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#tafgzkppuk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -1989,38 +2016,40 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell">
 <details class="code-fold">
 <summary>Show code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>event_data <span class="sc">|&gt;</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>episode_summary <span class="ot">&lt;-</span> event_data <span class="sc">|&gt;</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(episode, measure) <span class="sc">|&gt;</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">at_peak  =</span> <span class="fu">first</span>(index[event_month <span class="sc">==</span> <span class="fu">first</span>(peak_month)]) <span class="sc">/</span> <span class="dv">100</span> <span class="sc">-</span> <span class="dv">1</span>,</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">at_six   =</span> <span class="fu">first</span>(index[event_month <span class="sc">==</span> <span class="dv">6</span>]) <span class="sc">/</span> <span class="dv">100</span> <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">post3    =</span> <span class="fu">first</span>(index[event_month <span class="sc">==</span> <span class="fu">first</span>(peak_month) <span class="sc">+</span> <span class="dv">3</span>]) <span class="sc">/</span> <span class="dv">100</span> <span class="sc">-</span> <span class="dv">1</span>,</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups  =</span> <span class="st">"drop"</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gt</span>(<span class="at">groupname_col =</span> <span class="st">"episode"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmt_percent</span>(<span class="fu">c</span>(at_peak, at_six), <span class="at">decimals =</span> <span class="dv">1</span>, <span class="at">force_sign =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sub_missing</span>(<span class="at">missing_text =</span> <span class="st">"not yet available"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cols_label</span>(<span class="at">measure =</span> <span class="st">""</span>, <span class="at">at_peak =</span> <span class="st">"At gas peak"</span>,</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>             <span class="at">at_six =</span> <span class="st">"6 months after baseline"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_header</span>(<span class="at">title =</span> <span class="st">"Change from pre-shock baseline"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>episode_summary <span class="sc">|&gt;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gt</span>(<span class="at">groupname_col =</span> <span class="st">"episode"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmt_percent</span>(<span class="fu">c</span>(at_peak, post3), <span class="at">decimals =</span> <span class="dv">1</span>, <span class="at">force_sign =</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sub_missing</span>(<span class="at">missing_text =</span> <span class="st">"not yet available"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cols_label</span>(<span class="at">measure =</span> <span class="st">""</span>, <span class="at">at_peak =</span> <span class="st">"At gas peak"</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>             <span class="at">post3 =</span> <span class="st">"3 months after peak"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_header</span>(<span class="at">title =</span> <span class="st">"Change from pre-shock baseline"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
-<div id="asmrzzalpl" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#asmrzzalpl table {
+<div id="iiaukwatxu" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#iiaukwatxu table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#asmrzzalpl thead, #asmrzzalpl tbody, #asmrzzalpl tfoot, #asmrzzalpl tr, #asmrzzalpl td, #asmrzzalpl th {
+#iiaukwatxu thead, #iiaukwatxu tbody, #iiaukwatxu tfoot, #iiaukwatxu tr, #iiaukwatxu td, #iiaukwatxu th {
   border-style: none;
 }
 
-#asmrzzalpl p {
+#iiaukwatxu p {
   margin: 0;
   padding: 0;
 }
 
-#asmrzzalpl .gt_table {
+#iiaukwatxu .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -2046,12 +2075,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-left-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_caption {
+#iiaukwatxu .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#asmrzzalpl .gt_title {
+#iiaukwatxu .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2063,7 +2092,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-width: 0;
 }
 
-#asmrzzalpl .gt_subtitle {
+#iiaukwatxu .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2075,7 +2104,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-width: 0;
 }
 
-#asmrzzalpl .gt_heading {
+#iiaukwatxu .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2087,13 +2116,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_bottom_border {
+#iiaukwatxu .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_col_headings {
+#iiaukwatxu .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2108,7 +2137,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_col_heading {
+#iiaukwatxu .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2128,7 +2157,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#asmrzzalpl .gt_column_spanner_outer {
+#iiaukwatxu .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2140,15 +2169,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 4px;
 }
 
-#asmrzzalpl .gt_column_spanner_outer:first-child {
+#iiaukwatxu .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#asmrzzalpl .gt_column_spanner_outer:last-child {
+#iiaukwatxu .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#asmrzzalpl .gt_column_spanner {
+#iiaukwatxu .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2160,11 +2189,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   width: 100%;
 }
 
-#asmrzzalpl .gt_spanner_row {
+#iiaukwatxu .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#asmrzzalpl .gt_group_heading {
+#iiaukwatxu .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2190,7 +2219,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   text-align: left;
 }
 
-#asmrzzalpl .gt_empty_group_heading {
+#iiaukwatxu .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2205,15 +2234,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: middle;
 }
 
-#asmrzzalpl .gt_from_md > :first-child {
+#iiaukwatxu .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#asmrzzalpl .gt_from_md > :last-child {
+#iiaukwatxu .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#asmrzzalpl .gt_row {
+#iiaukwatxu .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2232,7 +2261,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   overflow-x: hidden;
 }
 
-#asmrzzalpl .gt_stub {
+#iiaukwatxu .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2245,7 +2274,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#asmrzzalpl .gt_stub_row_group {
+#iiaukwatxu .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2259,15 +2288,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   vertical-align: top;
 }
 
-#asmrzzalpl .gt_row_group_first td {
+#iiaukwatxu .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#asmrzzalpl .gt_row_group_first th {
+#iiaukwatxu .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#asmrzzalpl .gt_summary_row {
+#iiaukwatxu .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2277,16 +2306,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#asmrzzalpl .gt_first_summary_row {
+#iiaukwatxu .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_first_summary_row.thick {
+#iiaukwatxu .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#asmrzzalpl .gt_last_summary_row {
+#iiaukwatxu .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2296,7 +2325,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_grand_summary_row {
+#iiaukwatxu .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2306,7 +2335,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#asmrzzalpl .gt_first_grand_summary_row {
+#iiaukwatxu .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2316,7 +2345,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-top-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_last_grand_summary_row_top {
+#iiaukwatxu .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2326,11 +2355,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_striped {
+#iiaukwatxu .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#asmrzzalpl .gt_table_body {
+#iiaukwatxu .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2339,7 +2368,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-bottom-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_footnotes {
+#iiaukwatxu .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2353,7 +2382,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_footnote {
+#iiaukwatxu .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -2362,7 +2391,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#asmrzzalpl .gt_sourcenotes {
+#iiaukwatxu .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2376,7 +2405,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   border-right-color: #D3D3D3;
 }
 
-#asmrzzalpl .gt_sourcenote {
+#iiaukwatxu .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2384,72 +2413,72 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   padding-right: 5px;
 }
 
-#asmrzzalpl .gt_left {
+#iiaukwatxu .gt_left {
   text-align: left;
 }
 
-#asmrzzalpl .gt_center {
+#iiaukwatxu .gt_center {
   text-align: center;
 }
 
-#asmrzzalpl .gt_right {
+#iiaukwatxu .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#asmrzzalpl .gt_font_normal {
+#iiaukwatxu .gt_font_normal {
   font-weight: normal;
 }
 
-#asmrzzalpl .gt_font_bold {
+#iiaukwatxu .gt_font_bold {
   font-weight: bold;
 }
 
-#asmrzzalpl .gt_font_italic {
+#iiaukwatxu .gt_font_italic {
   font-style: italic;
 }
 
-#asmrzzalpl .gt_super {
+#iiaukwatxu .gt_super {
   font-size: 65%;
 }
 
-#asmrzzalpl .gt_footnote_marks {
+#iiaukwatxu .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#asmrzzalpl .gt_asterisk {
+#iiaukwatxu .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#asmrzzalpl .gt_indent_1 {
+#iiaukwatxu .gt_indent_1 {
   text-indent: 5px;
 }
 
-#asmrzzalpl .gt_indent_2 {
+#iiaukwatxu .gt_indent_2 {
   text-indent: 10px;
 }
 
-#asmrzzalpl .gt_indent_3 {
+#iiaukwatxu .gt_indent_3 {
   text-indent: 15px;
 }
 
-#asmrzzalpl .gt_indent_4 {
+#iiaukwatxu .gt_indent_4 {
   text-indent: 20px;
 }
 
-#asmrzzalpl .gt_indent_5 {
+#iiaukwatxu .gt_indent_5 {
   text-indent: 25px;
 }
 
-#asmrzzalpl .katex-display {
+#iiaukwatxu .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#asmrzzalpl div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#iiaukwatxu div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -2462,7 +2491,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="gt_col_headings even">
 <th id="measure" class="gt_col_heading gt_columns_bottom_border gt_center" data-quarto-table-cell-role="th" scope="col"></th>
 <th id="at_peak" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">At gas peak</th>
-<th id="at_six" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">6 months after baseline</th>
+<th id="post3" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">3 months after peak</th>
 </tr>
 </thead>
 <tbody class="gt_table_body">
@@ -2472,17 +2501,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="gt_row_group_first even">
 <td class="gt_row gt_center" headers="a2022-spike  measure">Gas price</td>
 <td class="gt_row gt_right" headers="a2022-spike  at_peak">+49.1%</td>
-<td class="gt_row gt_right" headers="a2022-spike  at_six">+49.1%</td>
+<td class="gt_row gt_right" headers="a2022-spike  post3">+11.9%</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_center" headers="a2022-spike  measure">Real grocery sales</td>
 <td class="gt_row gt_right" headers="a2022-spike  at_peak">−2.2%</td>
-<td class="gt_row gt_right" headers="a2022-spike  at_six">−2.2%</td>
+<td class="gt_row gt_right" headers="a2022-spike  post3">−4.6%</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_center" headers="a2022-spike  measure">Real non-gas retail sales</td>
 <td class="gt_row gt_right" headers="a2022-spike  at_peak">+0.1%</td>
-<td class="gt_row gt_right" headers="a2022-spike  at_six">+0.1%</td>
+<td class="gt_row gt_right" headers="a2022-spike  post3">−0.2%</td>
 </tr>
 <tr class="gt_group_heading_row odd">
 <th colspan="3" id="a2026-spike" class="gt_group_heading" data-quarto-table-cell-role="th" scope="colgroup">2026 spike</th>
@@ -2490,17 +2519,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="gt_row_group_first even">
 <td class="gt_row gt_center" headers="a2026-spike  measure">Gas price</td>
 <td class="gt_row gt_right" headers="a2026-spike  at_peak">+59.5%</td>
-<td class="gt_row gt_right" headers="a2026-spike  at_six">+40.0%</td>
+<td class="gt_row gt_right" headers="a2026-spike  post3">+44.5%</td>
 </tr>
 <tr class="odd">
 <td class="gt_row gt_center" headers="a2026-spike  measure">Real grocery sales</td>
 <td class="gt_row gt_right" headers="a2026-spike  at_peak">−0.4%</td>
-<td class="gt_row gt_right" headers="a2026-spike  at_six">−1.0%</td>
+<td class="gt_row gt_right" headers="a2026-spike  post3">−0.7%</td>
 </tr>
 <tr class="even">
 <td class="gt_row gt_center" headers="a2026-spike  measure">Real non-gas retail sales</td>
 <td class="gt_row gt_right" headers="a2026-spike  at_peak">+0.3%</td>
-<td class="gt_row gt_right" headers="a2026-spike  at_six">+0.9%</td>
+<td class="gt_row gt_right" headers="a2026-spike  post3">+1.5%</td>
 </tr>
 </tbody>
 </table>
@@ -2508,6 +2537,656 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p>Three patterns stand out. First, <strong>the 2026 shock was the larger of the two</strong>: gas prices peaked +59.5% above their pre-shock baseline, compared with +49.1% in 2022. Second, <strong>despite the bigger shock, grocery spending held up better</strong>. Three months after the peak, real grocery sales were -0.7% from baseline in 2026, versus -4.6% in 2022. Third, <strong>real non-gas retail barely moved in either episode</strong> (-0.2% in 2022 and +1.5% in 2026, three months after the peak).</p>
+<p>The 2022 grocery decline needs a careful reading. Food-at-home prices were rising 12.3% year over year at the 2022 gas peak, compared with 2.7% at the 2026 peak. Real grocery sales fall whenever grocery prices outpace dollar spending, whether or not gas is involved. The episode view can’t separate the two forces, which motivates the regression below.</p>
+</section>
+<section id="how-sensitive-is-spending-to-gas-prices" class="level2">
+<h2 class="anchored" data-anchor-id="how-sensitive-is-spending-to-gas-prices">How Sensitive Is Spending to Gas Prices?</h2>
+<p>The episode comparison is descriptive. To put a number (and an uncertainty range) on the relationship, I regress the year-over-year change in real spending on the year-over-year change in gas prices, using every month from 2022 onward.</p>
+<p>The slope reads as: <em>for every 1 percentage point faster gas price growth, real spending growth changes by β percentage points.</em> A negative β means higher gas prices crowd out other spending.</p>
+<p><strong>Controlling for inflation.</strong> Food inflation can differ a lot from one episode to the next, so a raw comparison could mistake grocery price pressure for a gas effect. The grocery model controls for food-at-home CPI inflation, and the retail model controls for headline CPI inflation.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>reg_data <span class="ot">&lt;-</span> sq1 <span class="sc">|&gt;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">food_cpi_yoy =</span> CUSR0000SAF11 <span class="sc">/</span> <span class="fu">lag</span>(CUSR0000SAF11, <span class="dv">12</span>) <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">cpi_yoy      =</span> CPIAUCSL <span class="sc">/</span> <span class="fu">lag</span>(CPIAUCSL, <span class="dv">12</span>) <span class="sc">-</span> <span class="dv">1</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(month, GASREGW_yoy, real_grocery_yoy, real_nongas_retail_yoy,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>         food_cpi_yoy, cpi_yoy) <span class="sc">|&gt;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">drop_na</span>()</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="fu">c</span>(<span class="st">"Real grocery sales"</span>, <span class="st">"Real non-gas retail sales"</span>),</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">formula =</span> <span class="fu">list</span>(</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    real_grocery_yoy       <span class="sc">~</span> GASREGW_yoy <span class="sc">+</span> food_cpi_yoy,</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    real_nongas_retail_yoy <span class="sc">~</span> GASREGW_yoy <span class="sc">+</span> cpi_yoy</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co">#' Fit every model in `models` and return the gas-price slope for each.</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>fit_gas_slopes <span class="ot">&lt;-</span> <span class="cf">function</span>(d) {</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>  models <span class="sc">|&gt;</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">gas_slope =</span> <span class="fu">map_dbl</span>(formula, \(f) <span class="fu">coef</span>(<span class="fu">lm</span>(f, <span class="at">data =</span> d))[[<span class="st">"GASREGW_yoy"</span>]])) <span class="sc">|&gt;</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(outcome, gas_slope)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>point_estimates <span class="ot">&lt;-</span> <span class="fu">fit_gas_slopes</span>(reg_data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p><strong>Why a block bootstrap?</strong> Standard regression confidence intervals assume each month is independent, but economic data are autocorrelated: this month looks a lot like last month. Resampling individual months would break that structure and make the estimates look more precise than they really are. A <em>moving block bootstrap</em> instead resamples consecutive 6-month blocks, keeping short-run dynamics intact. I draw 2,000 bootstrap samples and refit both models on each.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">#' Draw one moving-block bootstrap sample of the rows of `d`.</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="co">#'</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param d         data frame ordered in time</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co">#' @param block_len length of each resampled block (months)</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>block_bootstrap_sample <span class="ot">&lt;-</span> <span class="cf">function</span>(d, <span class="at">block_len =</span> <span class="dv">6</span>) {</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  n        <span class="ot">&lt;-</span> <span class="fu">nrow</span>(d)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  n_blocks <span class="ot">&lt;-</span> <span class="fu">ceiling</span>(n <span class="sc">/</span> block_len)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  starts   <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq_len</span>(n <span class="sc">-</span> block_len <span class="sc">+</span> <span class="dv">1</span>), n_blocks, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  idx      <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(<span class="fu">outer</span>(<span class="dv">0</span><span class="sc">:</span>(block_len <span class="sc">-</span> <span class="dv">1</span>), starts, <span class="st">`</span><span class="at">+</span><span class="st">`</span>))[<span class="fu">seq_len</span>(n)]</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  d[idx, ]</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">9750</span>)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>N_BOOT <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>boot_slopes <span class="ot">&lt;-</span> <span class="fu">map</span>(<span class="fu">seq_len</span>(N_BOOT), \(b) {</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fit_gas_slopes</span>(<span class="fu">block_bootstrap_sample</span>(reg_data)) <span class="sc">|&gt;</span> <span class="fu">mutate</span>(<span class="at">draw =</span> b)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>}) <span class="sc">|&gt;</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list_rbind</span>()</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>boot_summary <span class="ot">&lt;-</span> boot_slopes <span class="sc">|&gt;</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(outcome) <span class="sc">|&gt;</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">ci_low    =</span> <span class="fu">quantile</span>(gas_slope, <span class="fl">0.025</span>),</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">ci_high   =</span> <span class="fu">quantile</span>(gas_slope, <span class="fl">0.975</span>),</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">share_neg =</span> <span class="fu">mean</span>(gas_slope <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups   =</span> <span class="st">"drop"</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(point_estimates, <span class="at">by =</span> <span class="st">"outcome"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">effect_50 =</span> gas_slope <span class="sc">*</span> <span class="fl">0.5</span>) <span class="sc">|&gt;</span>   <span class="co"># implied effect of a 50% gas price rise</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">relocate</span>(gas_slope, <span class="at">.after =</span> outcome)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>boot_summary <span class="sc">|&gt;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gt</span>() <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmt_number</span>(<span class="fu">c</span>(gas_slope, ci_low, ci_high), <span class="at">decimals =</span> <span class="dv">3</span>) <span class="sc">|&gt;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmt_percent</span>(<span class="fu">c</span>(share_neg, effect_50), <span class="at">decimals =</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cols_merge</span>(<span class="fu">c</span>(ci_low, ci_high), <span class="at">pattern =</span> <span class="st">"[{1}, {2}]"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cols_label</span>(</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">outcome   =</span> <span class="st">""</span>,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">gas_slope =</span> <span class="st">"Gas slope (β)"</span>,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">ci_low    =</span> <span class="st">"95% block-bootstrap CI"</span>,</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">share_neg =</span> <span class="st">"Share of draws below 0"</span>,</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">effect_50 =</span> <span class="st">"Implied effect of a 50% gas rise"</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_header</span>(</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">title    =</span> <span class="st">"Sensitivity of real spending growth to gas price growth"</span>,</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Monthly YoY changes, 2022 onward; 2,000 moving-block bootstrap draws"</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tab_footnote</span>(<span class="st">"Grocery model controls for food-at-home CPI inflation; retail model controls for headline CPI inflation."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div id="evawewfojt" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#evawewfojt table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#evawewfojt thead, #evawewfojt tbody, #evawewfojt tfoot, #evawewfojt tr, #evawewfojt td, #evawewfojt th {
+  border-style: none;
+}
+
+#evawewfojt p {
+  margin: 0;
+  padding: 0;
+}
+
+#evawewfojt .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#evawewfojt .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#evawewfojt .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#evawewfojt .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#evawewfojt .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#evawewfojt .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#evawewfojt .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#evawewfojt .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#evawewfojt .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#evawewfojt .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#evawewfojt .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#evawewfojt .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#evawewfojt .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+
+#evawewfojt .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#evawewfojt .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#evawewfojt .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#evawewfojt .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#evawewfojt .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#evawewfojt .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#evawewfojt .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#evawewfojt .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#evawewfojt .gt_row_group_first th {
+  border-top-width: 2px;
+}
+
+#evawewfojt .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#evawewfojt .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#evawewfojt .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#evawewfojt .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#evawewfojt .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#evawewfojt .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#evawewfojt .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+
+#evawewfojt .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#evawewfojt .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#evawewfojt .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#evawewfojt .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#evawewfojt .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#evawewfojt .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#evawewfojt .gt_left {
+  text-align: left;
+}
+
+#evawewfojt .gt_center {
+  text-align: center;
+}
+
+#evawewfojt .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#evawewfojt .gt_font_normal {
+  font-weight: normal;
+}
+
+#evawewfojt .gt_font_bold {
+  font-weight: bold;
+}
+
+#evawewfojt .gt_font_italic {
+  font-style: italic;
+}
+
+#evawewfojt .gt_super {
+  font-size: 65%;
+}
+
+#evawewfojt .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+
+#evawewfojt .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#evawewfojt .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#evawewfojt .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#evawewfojt .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#evawewfojt .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#evawewfojt .gt_indent_5 {
+  text-indent: 25px;
+}
+
+#evawewfojt .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+
+#evawewfojt div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+
+<table class="gt_table caption-top table table-sm table-striped small" data-quarto-bootstrap="false">
+<thead>
+<tr class="gt_heading header">
+<td colspan="5" class="gt_heading gt_title gt_font_normal">Sensitivity of real spending growth to gas price growth</td>
+</tr>
+<tr class="gt_heading even">
+<td colspan="5" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border">Monthly YoY changes, 2022 onward; 2,000 moving-block bootstrap draws</td>
+</tr>
+<tr class="gt_col_headings header">
+<th id="outcome" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col"></th>
+<th id="gas_slope" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Gas slope (β)</th>
+<th id="ci_low" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">95% block-bootstrap CI</th>
+<th id="share_neg" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Share of draws below 0</th>
+<th id="effect_50" class="gt_col_heading gt_columns_bottom_border gt_right" data-quarto-table-cell-role="th" scope="col">Implied effect of a 50% gas rise</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="outcome">Real grocery sales</td>
+<td class="gt_row gt_right" headers="gas_slope">0.022</td>
+<td class="gt_row gt_right" headers="ci_low">[−0.029, 0.063]</td>
+<td class="gt_row gt_right" headers="share_neg">22.1%</td>
+<td class="gt_row gt_right" headers="effect_50">1.1%</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="outcome">Real non-gas retail sales</td>
+<td class="gt_row gt_right" headers="gas_slope">0.041</td>
+<td class="gt_row gt_right" headers="ci_low">[−0.017, 0.081]</td>
+<td class="gt_row gt_right" headers="share_neg">7.3%</td>
+<td class="gt_row gt_right" headers="effect_50">2.1%</td>
+</tr>
+</tbody><tfoot>
+<tr class="gt_footnotes odd">
+<td colspan="5" class="gt_footnote">Grocery model controls for food-at-home CPI inflation; retail model controls for headline CPI inflation.</td>
+</tr>
+</tfoot>
+
+</table>
+
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(boot_slopes, <span class="fu">aes</span>(gas_slope)) <span class="sc">+</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">50</span>, <span class="at">fill =</span> <span class="st">"#D1495B"</span>, <span class="at">alpha =</span> <span class="fl">0.75</span>) <span class="sc">+</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">data =</span> point_estimates, <span class="fu">aes</span>(<span class="at">xintercept =</span> gas_slope),</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="dv">1</span>, <span class="at">color =</span> <span class="st">"black"</span>) <span class="sc">+</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> outcome, <span class="at">scales =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title    =</span> <span class="st">"How certain is the gas-price effect?"</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="st">"Distribution of 2,000 block-bootstrap slope estimates (black line = full-sample estimate)"</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"Gas slope (β)"</span>, <span class="at">y =</span> <span class="st">"Bootstrap draws"</span>,</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">caption  =</span> <span class="st">"Source: FRED (EIA, U.S. Census Bureau, BLS)"</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">face =</span> <span class="st">"bold"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="individual_report_files/figure-html/bootstrap-plot-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+</div>
+<p><strong>Reading the results.</strong> For grocery, the gas slope is 0.022, with a 95% interval of [-0.029, 0.063]. For non-gas retail, it is 0.041 [-0.017, 0.081]. Both intervals include zero. In plain terms: once inflation is accounted for, months with faster gas price growth did not have measurably weaker real retail or grocery spending. Taken at face value, a 50% rise in gas prices implies a change of +1.1% in real grocery growth and +2.1% in real non-gas retail growth, and the uncertainty is wide enough that “no effect” remains entirely plausible.</p>
+<p>If anything, the estimates lean slightly <em>positive</em>, especially for retail, where 92.6% of bootstrap draws fall above zero. I don’t read that as gas prices boosting spending. A more plausible story is a shared driver: when the economy runs hot, demand for gasoline and demand for goods rise together, pushing gas prices and retail sales in the same direction. This model controls for inflation but not for the business cycle, so it can’t rule out that confounding.</p>
+</section>
+<section id="limitations" class="level2">
+<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
+<p>Several features of the data and design limit how far these results can be pushed:</p>
+<ul>
+<li><strong>National totals hide who is cutting back.</strong> The studies that find clear spending cuts, such as Gelman et al.&nbsp;(2023) and Aglar (2026), work with household-level or state-level data. A national total can stay flat even if lower-income households cut grocery trips while higher-income households barely notice the pump. My null result is about the <em>average</em> consumer, not every consumer.</li>
+<li><strong>Correlation, not causation.</strong> Gas prices are not randomly assigned. They rise when global demand is strong, which is also when U.S. spending tends to be strong. Without a business-cycle control or a natural experiment, the slope mixes the true crowd-out effect with that shared upswing.</li>
+<li><strong>A short, still-unfolding sample.</strong> The regression rests on roughly 57 monthly observations, and the 2026 aftermath is only partly observed. Recent retail figures are advance estimates that will be revised, so the latest months could still move.</li>
+<li><strong>Measurement choices.</strong> October 2025 CPI is interpolated, not observed. Non-gas retail is deflated by headline CPI, which includes energy prices and slightly overstates the price growth of non-energy goods. The episode rule (lowest gas price in the six months before the peak) is a reasonable convention, but a different window would shift the baselines somewhat.</li>
+</ul>
+</section>
+<section id="conclusion-what-sq1-means-for-the-overarching-question" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion-what-sq1-means-for-the-overarching-question">Conclusion: What SQ1 Means for the Overarching Question</h2>
+<p>The 2026 oil shock was large: gas prices rose more than in 2022, the most recent comparable episode. Yet at the national level, I find <strong>no measurable crowd-out of real retail or grocery spending</strong>. Grocery spending dipped briefly and recovered, non-gas retail barely moved, and once inflation is controlled for, the relationship between gas price growth and real spending growth is statistically indistinguishable from zero. The steep grocery decline in 2022 looks more like a food inflation story than a gas story.</p>
+<p>For the team’s overarching question, this result is useful precisely because it rules out the most obvious channel. If households paid substantially more for gas without buying less at stores, the money had to come from somewhere, and the other specific questions test where: cutting back on dining out (SQ2), financing the gap with credit cards (SQ3), or adjusting how much they drive and whether they switch to transit (SQ4 and SQ5). SQ1 establishes the baseline: in 2026, the average American consumer absorbed the pump shock without visibly pulling back on everyday retail and grocery purchases.</p>
+</section>
+<section id="future-work" class="level2">
+<h2 class="anchored" data-anchor-id="future-work">Future Work</h2>
+<p>With more time, I would extend this analysis in four directions:</p>
+<ol type="1">
+<li><strong>Go below the national level.</strong> State retail sales or card-spending data broken out by income would show whether the flat national total masks real cutbacks among lower-income households, which is where prior research finds the strongest effects.</li>
+<li><strong>Control for the business cycle.</strong> Adding unemployment or real income growth to the regression would help separate true crowd-out from the shared upswing that pushes gas prices and spending up together.</li>
+<li><strong>Use a longer history.</strong> Including the 2008, 2011, and 2014 oil episodes would show whether consumers have become less sensitive to gas prices over time, directly testing the “evolving link” described by the Kansas City Fed.</li>
+<li><strong>Revisit the 2026 aftermath.</strong> Once revised retail figures cover a full year after the peak, the episode comparison can be completed rather than cut off partway through.</li>
+</ol>
+</section>
+<section id="references" class="level2">
+<h2 class="anchored" data-anchor-id="references">References</h2>
+<ul>
+<li>Aglar (2026). <em>Gasoline price shocks and consumer spending: Evidence from household purchases.</em> Working paper.</li>
+<li>Federal Reserve Bank of Kansas City (2021). <em>The Evolving Link between Oil Prices and U.S. Consumer Spending.</em></li>
+<li>Gelman, M., et al.&nbsp;(2023). The response of consumer spending to changes in gasoline prices. <em>American Economic Journal: Macroeconomics.</em></li>
+<li>Federal Reserve Bank of St.&nbsp;Louis. FRED, Federal Reserve Economic Data. Series: MCOILWTICO, GASREGW, RSGCS, RSXFS, RSGASS, RSGMS, CUSR0000SAF11, CPIAUCSL.</li>
+</ul>
 
 
 </section>
