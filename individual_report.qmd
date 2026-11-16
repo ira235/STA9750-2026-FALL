@@ -178,6 +178,48 @@ raw <- map(sq1_series$series_id, get_fred_series) |>
   left_join(sq1_series, by = "series_id")
 ```
 
+## Data Pipeline at a Glance
+
+Before the details, here is every cleaning and preparation step in order, from
+raw download to analysis-ready data. Each step is implemented in the code
+chunks of the sections that follow.
+
+```{r}
+#| label: pipeline-table
+
+pipeline_steps <- tribble(
+  ~stage,         ~step,                              ~what,                                                                                                            ~why,
+  "Acquire",      "Pull data from the FRED API",      "8 series from Jan 2021 onward; API key read from the environment, with a public CSV fallback",                   "Reproducible, live access to official data",
+  "Acquire",      "Cache downloads locally",          "Each series saved to data/sq1/, with the start date in the file name",                                           "Fast re-renders; a new date range forces a fresh download",
+  "Clean",        "Convert missing-value codes",      "FRED's \".\" placeholders converted to NA",                                                                      "Keeps text from breaking numeric calculations",
+  "Clean",        "Fill the October 2025 CPI gap",    "Linear interpolation between Sep and Nov 2025 (shutdown month), interior gaps only, and flagged",                 "Real spending needs CPI; CPI moves slowly, so the error is small",
+  "Transform",    "Align frequencies",                "Weekly gas prices averaged to monthly",                                                                          "All series need the same time unit before joining",
+  "Transform",    "Reshape to one row per month",     "Long table pivoted to wide, one column per series",                                                              "Simplifies cross-series calculations",
+  "Transform",    "Build non-gas retail",             "Total retail sales minus gasoline station sales",                                                                "Stops pump prices from inflating \"retail\" mechanically",
+  "Transform",    "Adjust for inflation",             "Grocery deflated by food-at-home CPI; non-gas retail by headline CPI",                                           "Measures quantity bought, not dollars spent",
+  "Transform",    "Year-over-year changes",           "Percent change versus the same month a year earlier",                                                            "Removes seasonality; feeds the regression",
+  "Check",        "Coverage and quality table",       "First/last month, months observed, missing and repeated values per series",                                      "Catches gaps and duplicated months",
+  "Check",        "Data-driven episode definitions",  "Peak = highest gas month in the year; baseline = cheapest month in the 6 months before",                          "Avoids picking dates by eye",
+  "Known issue",  "Preliminary recent months",        "Latest retail figures are Census advance estimates, revised later",                                              "Newest results could still move"
+)
+
+pipeline_steps |>
+  mutate(n = row_number(), .before = 1) |>
+  gt(groupname_col = "stage") |>
+  cols_label(n = "#", step = "Step", what = "What was done", why = "Why it matters") |>
+  cols_width(n ~ px(40), step ~ px(200), what ~ px(330), why ~ px(260)) |>
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_row_groups()
+  ) |>
+  tab_style(
+    style = cell_fill(color = "#FDECEE"),
+    locations = cells_body(rows = stage == "Known issue")
+  ) |>
+  tab_header(title = "SQ1 data cleaning and preparation pipeline") |>
+  tab_options(table.font.size = px(13), row_group.background.color = "#F3F3F3")
+```
+
 ## Data Preparation
 
 Gasoline prices are weekly, everything else is monthly, so weekly prices are
@@ -705,4 +747,3 @@ With more time, I would extend this analysis in four directions:
 - Federal Reserve Bank of St. Louis. FRED, Federal Reserve Economic Data.
   Series: MCOILWTICO, GASREGW, RSGCS, RSXFS, RSGASS, RSGMS, CUSR0000SAF11,
   CPIAUCSL.
-
