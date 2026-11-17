@@ -1,5 +1,781 @@
 ---
-title: "Mini-Project Placeholder"
+title: "Mini-Project #03: Where My People At? Bangladeshis"
+author: "Noshin (Ira) Rahman"
+format:
+  html:
+    toc: true
+    code-fold: true
+    code-summary: "Show the code"
+execute:
+  warning: false
+  message: false
 ---
 
-This is a placeholder for STA9750 Mini-Project 3. Check back soon for more!
+
+
+```{=html}
+<style>
+  /* Bangladesh green showing on the page margins */
+  body { background-color: #006a4e; }
+
+  /* Your content in a centered white card */
+  div#quarto-content {
+    background: #ffffff;
+    max-width: 1000px;
+    margin: 1.5rem auto;
+    padding: 1rem 2.5rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  }
+</style>
+
+<div style="text-align:center; margin-top: 1rem;">
+  <svg width="110" height="66" viewBox="0 0 100 60" role="img" aria-label="Flag of Bangladesh">
+    <rect width="100" height="60" fill="#006a4e"/>
+    <circle cx="45" cy="30" r="20" fill="#f42a41"/>
+  </svg>
+</div>
+```
+
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(gt)
+library(scales)
+
+DATA_DIR <- fs::path("data", "mp03")
+fs::dir_create(DATA_DIR, recurse = TRUE)
+
+# Latest releases: ACS-1 for 2025, ACS-5 for 2020-2024.
+ACS1_YEAR <- 2025
+ACS5_YEAR <- 2024
+
+# B01003_001 = total population. B02018_022 = Bangladeshi, alone or in any
+# combination (checked against the Census variable list).
+ACS_VARIABLES <- c(total_pop = "B01003_001", bangladeshi = "B02018_022")
+
+NYC_COUNTIES <- c("Bronx", "Kings", "New York", "Queens", "Richmond")
+```
+
+## Data Acquisition
+
+### Task 1: CBSA Population
+
+```{r}
+#| label: load-cbsa
+
+load_cbsa_population <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("cbsa_acs5_", ACS5_YEAR, ".csv"))
+
+  if (!fs::file_exists(cache_file)) {
+    get_acs(
+      geography = "cbsa",
+      variables = ACS_VARIABLES,
+      year = ACS5_YEAR,
+      survey = "acs5"
+    ) |>
+      select(-moe) |>
+      pivot_wider(names_from = variable, values_from = estimate) |>
+      write_csv(cache_file)
+  }
+
+  read_csv(cache_file, col_types = cols(GEOID = col_character()))
+}
+
+CBSA_POP <- load_cbsa_population()
+
+
+load_us_total <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("us_acs5_", ACS5_YEAR, ".csv"))
+
+  if (!fs::file_exists(cache_file)) {
+    get_acs(
+      geography = "us",
+      variables = ACS_VARIABLES,
+      year = ACS5_YEAR,
+      survey = "acs5"
+    ) |>
+      select(-moe) |>
+      pivot_wider(names_from = variable, values_from = estimate) |>
+      write_csv(cache_file)
+  }
+
+  read_csv(cache_file)
+}
+
+US_TOTAL <- load_us_total()
+```
+
+### Task 2: NYC Tract Population
+
+```{r}
+#| label: load-tracts
+load_nyc_tracts <- function() {
+  
+  cache_file <- fs::path(
+    DATA_DIR, str_c("nyc_tracts_acs5_", ACS5_YEAR, ".gpkg")
+  )
+
+  if (!fs::file_exists(cache_file)) {
+    get_acs(
+      geography = "tract",
+      variables = ACS_VARIABLES,
+      state = "NY",
+      county = NYC_COUNTIES,
+      year = ACS5_YEAR,
+      survey = "acs5",
+      geometry = TRUE
+    ) |>
+      select(-moe) |>
+      pivot_wider(names_from = variable, values_from = estimate) |>
+      write_sf(cache_file)
+  }
+
+  read_sf(cache_file)
+}
+
+NYC_TRACTS <- load_nyc_tracts()
+```
+
+### Task 3: NYC Neighborhood Areas (NTAs)
+
+```{r}
+#| label: load-nta
+load_nyc_nta <- function() {
+  zip_file <- fs::path(DATA_DIR, "nyc_nta2020.zip")
+  unzip_dir <- fs::path(DATA_DIR, "nta_shapefile")
+
+ 
+  if (!fs::file_exists(zip_file)) {
+    nta_url <- paste0(
+      "https://data.cityofnewyork.us/api/geospatial/",
+      "9nt8-h7nd?method=export&format=Shapefile"
+    )
+    download.file(nta_url, zip_file, mode = "wb")
+  }
+
+ 
+  unzip(zip_file, exdir = unzip_dir, overwrite = TRUE)
+  shp_path <- fs::dir_ls(unzip_dir, recurse = TRUE, glob = "*.shp")[1]
+
+  st_read(shp_path, quiet = TRUE)
+}
+
+NYC_NTA <- load_nyc_nta()
+```
+
+### Task 4: Aggregate Tracts to NTAs
+
+```{r}
+#| label: aggregate-nta
+NYC_TRACTS <- st_transform(NYC_TRACTS, st_crs(NYC_NTA))
+
+TRACTS_IN_NTA <- NYC_TRACTS |>
+  st_join(NYC_NTA, join = st_intersects, largest = TRUE)
+NTA_POP <- TRACTS_IN_NTA |>
+  st_drop_geometry() |>
+  group_by(nta2020, ntaname, boroname) |>
+  summarize(
+    total_pop = sum(total_pop, na.rm = TRUE),
+    bangladeshi = sum(bangladeshi, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(bangladeshi_share = bangladeshi / total_pop)
+
+NTA_MAP <- NYC_NTA |>
+  left_join(NTA_POP, by = c("nta2020", "ntaname", "boroname"))
+```
+
+
+## Task 5: Download PLUTO
+
+
+```{r}
+#| label: load-pluto
+library(httr2)
+
+load_pluto <- function() {
+  cache_file <- fs::path(DATA_DIR, "pluto.csv")
+  keep_cols <- c(
+    "borough", "bbl", "bct2020", "unitsres", "resarea",
+    "officearea", "comarea", "bldgarea", "numfloors", "landuse"
+  )
+
+  if (!fs::file_exists(cache_file)) {
+    base_url <- "https://data.cityofnewyork.us/resource/64uk-42ks.csv"
+    page_size <- 50000
+    offset <- 0
+    pages <- list()
+
+    repeat {
+      message("Downloading PLUTO rows from ", offset)
+      page_text <- request(base_url) |>
+        req_url_query(
+          `$select` = paste(keep_cols, collapse = ","),
+          `$order` = "bbl",          # stable order so paging doesn't skip rows
+          `$limit` = page_size,
+          `$offset` = offset
+        ) |>
+        req_timeout(180) |>
+        req_retry(max_tries = 6, backoff = ~ min(60, 2 ^ .x)) |>
+        req_perform() |>
+        resp_body_string()
+
+      page <- read_csv(I(page_text), show_col_types = FALSE)
+
+      pages <- append(pages, list(page))
+      
+      if (nrow(page) < page_size) break
+      offset <- offset + page_size
+    }
+
+    bind_rows(pages) |> write_csv(cache_file)
+  }
+
+  read_csv(
+    cache_file,
+    col_types = cols(
+      bbl = col_character(),
+      bct2020 = col_character(),
+      borough = col_character(),
+      .default = col_double()
+    )
+  )
+}
+
+PLUTO <- load_pluto()
+```
+
+## Task 6: Exploratory Data Analysis
+
+```{r}
+#| label: pluto-tract
+
+BORO_FIPS <- c(MN = "061", BX = "005", BK = "047", QN = "081", SI = "085")
+
+PLUTO_TRACT <- PLUTO |>
+  filter(!is.na(bct2020), borough %in% names(BORO_FIPS)) |>
+  mutate(
+    tract6 = str_pad(str_sub(bct2020, 2), width = 6, side = "left", pad = "0"),
+    GEOID  = str_c("36", BORO_FIPS[borough], tract6)
+  ) |>
+  group_by(GEOID) |>
+  summarize(
+    officearea = sum(officearea, na.rm = TRUE),
+    comarea    = sum(comarea,    na.rm = TRUE),
+    resarea    = sum(resarea,    na.rm = TRUE),
+    bldgarea   = sum(bldgarea,   na.rm = TRUE),
+    unitsres   = sum(unitsres,   na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+TRACT_NTA <- TRACTS_IN_NTA |>
+  st_drop_geometry() |>
+  select(GEOID, nta2020, ntaname, boroname)
+
+matched <- sum(PLUTO_TRACT$GEOID %in% NYC_TRACTS$GEOID)
+cat("PLUTO tracts:", nrow(PLUTO_TRACT),
+    "| matched to census tracts:", matched,
+    sprintf("(%.1f%%)", 100 * matched / nrow(PLUTO_TRACT)), "\n")
+
+```
+
+```{r}
+#| label: tract-stats
+TRACT_STATS <- NYC_TRACTS |>
+  st_drop_geometry() |>
+  select(GEOID, NAME, total_pop, bangladeshi) |>
+  left_join(PLUTO_TRACT, by = "GEOID") |>
+  left_join(TRACT_NTA |> select(GEOID, ntaname, boroname), by = "GEOID")
+```
+
+### Q1 Which NYC census tract has the most office floor area in NYC?
+
+```{r}
+#| label: q1-office
+office_top <- TRACT_STATS |> slice_max(officearea, n = 1)
+
+TRACT_STATS |>
+  arrange(desc(officearea)) |>
+  select(GEOID, ntaname, boroname, officearea) |>
+  slice_head(n = 5)
+```
+### Q3. Which NYC census tract has the highest population density, measured as population per square foot of residential space? Do your answers change if you measure by population per residential unit?
+
+```{r}
+#| label: q3-density
+
+TRACT_DENSITY <- TRACT_STATS |>
+  filter(total_pop >= 500, unitsres >= 100, resarea >= 50000) |>
+  mutate(
+    pop_per_1k_sqft = total_pop / resarea * 1000,
+    pop_per_unit    = total_pop / unitsres
+  )
+
+TRACT_DENSITY |>
+  arrange(desc(pop_per_1k_sqft)) |>
+  select(GEOID, ntaname, total_pop, resarea, pop_per_1k_sqft) |>
+  slice_head(n = 5)
+
+# Ranked by residential unit
+TRACT_DENSITY |>
+  arrange(desc(pop_per_unit)) |>
+  select(GEOID, ntaname, total_pop, unitsres, pop_per_unit) |>
+  slice_head(n = 5)
+```
+### Q7. Do we observe a roughly linear relationship between population and housing (units or area) across NYC tracts or is the relationship more complex?
+
+```{r}
+#| label: q7-pop-housing
+# Q7: relationship between population and housing across tracts (non-spatial plot)
+ggplot(TRACT_DENSITY, aes(x = unitsres, y = total_pop)) +
+  geom_point(alpha = 0.3, color = "#006a4e") +
+  geom_smooth(method = "lm", se = FALSE, color = "#f42a41") +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  labs(
+    # TODO: write your own title + caption here
+    x = "Residential units in tract",
+    y = "Population in tract"
+  ) +
+  theme_minimal()
+```
+
+### Q10. How many New Yorkers live in areas that could be described as ‘primarily commercial’?
+
+```{r}
+#| label: q10-commercial
+COMM_TRACTS <- TRACT_STATS |>
+  mutate(primarily_commercial = comarea > resarea)
+
+commercial_pop <- COMM_TRACTS |>
+  filter(primarily_commercial) |>
+  summarize(people = sum(total_pop, na.rm = TRUE)) |>
+  pull(people)
+
+commercial_pop
+commercial_pop / sum(TRACT_STATS$total_pop, na.rm = TRUE)
+```
+### Q2. Which NYC NTA has the most residential units (unitsses in PLUTO)?
+```{r}
+#| label: q2-nta-units
+NTA_UNITS <- PLUTO_TRACT |>
+  left_join(TRACT_NTA, by = "GEOID") |>
+  filter(!is.na(nta2020)) |>
+  group_by(nta2020, ntaname, boroname) |>
+  summarize(residential_units = sum(unitsres, na.rm = TRUE), .groups = "drop") |>
+  arrange(desc(residential_units))
+
+NTA_UNITS |> slice_head(n = 10)
+```
+### Q8. What are the NTAs with highest buildings?
+
+```{r}
+#| label: q8-tallest
+NTA_FLOORS <- PLUTO |>
+  filter(!is.na(bct2020), borough %in% names(BORO_FIPS),
+         !is.na(numfloors), numfloors > 0, numfloors <= 105) |>
+  mutate(
+    tract6 = str_pad(str_sub(bct2020, 2), 6, side = "left", pad = "0"),
+    GEOID  = str_c("36", BORO_FIPS[borough], tract6)
+  ) |>
+  left_join(TRACT_NTA, by = "GEOID") |>
+  filter(!is.na(nta2020)) |>
+  group_by(ntaname, boroname) |>
+  summarize(
+    tallest       = max(numfloors),
+    highrises_20p = sum(numfloors >= 20),
+    .groups = "drop"
+  ) |>
+  arrange(desc(highrises_20p))
+
+NTA_FLOORS |> slice_head(n = 10)
+```
+
+### Q9. Visualize how population density varies across NYC?
+
+```{r}
+#| label: q9-density-map
+TRACT_DENSITY_MAP <- NYC_TRACTS |>
+  mutate(
+    area_sqmi   = as.numeric(st_area(NYC_TRACTS)) / 2.59e6,  # m^2 -> sq miles
+    pop_density = total_pop / area_sqmi
+  )
+
+ggplot(TRACT_DENSITY_MAP) +
+  geom_sf(aes(fill = pop_density), color = NA) +
+  scale_fill_gradient(low = "#006a4e", high = "#f42a41",
+                      labels = comma, trans = "sqrt") +
+  labs(
+    # TODO: write your own title + caption
+    fill = "People per sq mi"
+  ) +
+  theme_void()
+```
+
+### Q4. What 5 metro areas, other than NYC, have the largest share of population that identify with your ancestry of interest?
+
+```{r}
+#| label: q4-metro-share
+NYC_CBSA_GEOID <- CBSA_POP |> slice_max(bangladeshi, n = 1) |> pull(GEOID)
+
+METRO_SHARE <- CBSA_POP |>
+  filter(GEOID != NYC_CBSA_GEOID, bangladeshi >= 1000) |>
+  mutate(bd_share = bangladeshi / total_pop) |>
+  arrange(desc(bd_share)) |>
+  select(NAME, total_pop, bangladeshi, bd_share)
+
+METRO_SHARE |> slice_head(n = 5)
+```
+
+### Q6. As a percentage of all US residents who identify with your ancestry of interest, how many live in NY and how many live in other major metro areas?
+
+```{r}
+#| label: q6-us-share
+us_bd <- US_TOTAL$bangladeshi
+ny_bd <- CBSA_POP |> slice_max(bangladeshi, n = 1) |> pull(bangladeshi)
+
+ny_bd / us_bd 
+
+# 9 largest metros (after NYC) combined
+CBSA_POP |>
+  arrange(desc(bangladeshi)) |>
+  slice(2:10) |>
+  summarize(next9_share = sum(bangladeshi) / us_bd)
+```
+
+### Q5. At a not-too-granular level, describe the distribution of ancestries in a large non-NYC city of your choosing from the previous question.
+
+```{r}
+#| label: q5-ancestry-dist
+FEATURE_METRO <- "Washington-Arlington-Alexandria"
+feature_geoid <- CBSA_POP |> filter(str_detect(NAME, FEATURE_METRO)) |> pull(GEOID)
+
+load_cbsa_ancestry <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("b02018_cbsa_", ACS5_YEAR, ".csv"))
+  if (!fs::file_exists(cache_file)) {
+    get_acs(geography = "cbsa", table = "B02018",
+            year = ACS5_YEAR, survey = "acs5") |>
+      write_csv(cache_file)
+  }
+  read_csv(cache_file, col_types = cols(GEOID = col_character()))
+}
+
+B02018_CBSA <- load_cbsa_ancestry()
+
+b02018_labels <- load_variables(ACS5_YEAR, "acs5") |>
+  filter(str_starts(name, "B02018"), name != "B02018_001") |>
+  transmute(variable = name, ancestry = str_remove(label, "^.*!!")) |>
+  filter(!str_detect(ancestry, ":$"))
+
+METRO_ANCESTRY <- B02018_CBSA |>
+  filter(GEOID == feature_geoid, variable != "B02018_001") |>
+  left_join(b02018_labels, by = "variable") |>
+  filter(!is.na(ancestry)) |>
+  arrange(desc(estimate))
+
+plot_anc <- bind_rows(
+  METRO_ANCESTRY |> slice_head(n = 10),
+  METRO_ANCESTRY |> filter(ancestry == "Bangladeshi")
+) |> distinct()
+
+plot_anc |>
+  ggplot(aes(x = estimate, y = reorder(ancestry, estimate),
+             fill = ancestry == "Bangladeshi")) +
+  geom_col() +
+  scale_fill_manual(values = c(`FALSE` = "#006a4e", `TRUE` = "firebrick"),
+                    guide = "none") +
+  scale_x_continuous(labels = comma) +
+  labs(
+    title = "Asian ancestry in the Washington, D.C. metro area",
+    x = "Population",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+
+
+
+### Extra Credit Opportunity: Additional Census Tables
+
+
+```{r}
+#| label: ec-interactive-scatter
+#| fig-width: 7
+#| fig-height: 4.5
+library(ggiraph)
+
+bd_scatter <- NTA_POP |>
+  filter(!is.na(bangladeshi), total_pop > 0) |>
+  mutate(tip = str_c(ntaname, " | ", comma(bangladeshi),
+                     " Bangladeshi (", percent(bangladeshi / total_pop, 0.1), ")"))
+
+p_bd <- ggplot(bd_scatter, aes(x = total_pop, y = bangladeshi)) +
+  geom_point_interactive(aes(tooltip = tip, data_id = nta2020),
+                         alpha = 0.6, color = "#006a4e", size = 2) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = comma) +
+  labs(x = "Total NTA population", y = "Bangladeshi residents") +  # TODO title
+  theme_minimal()
+
+girafe(ggobj = p_bd, width_svg = 7, height_svg = 4.5,
+       options = list(opts_hover(css = "fill:#f42a41;r:5pt;")))
+```
+
+```{r}
+#| label: ec-income-load
+load_nyc_income <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("nyc_income_acs5_", ACS5_YEAR, ".csv"))
+  if (!fs::file_exists(cache_file)) {
+    get_acs(geography = "tract",
+            variables = c(median_income = "B19013_001"),
+            state = "NY", county = NYC_COUNTIES,
+            year = ACS5_YEAR, survey = "acs5") |>
+      select(GEOID, median_income = estimate) |>
+      write_csv(cache_file)
+  }
+  read_csv(cache_file, col_types = cols(GEOID = col_character()))
+}
+
+NYC_INCOME <- load_nyc_income()
+```
+
+```{r}
+#| label: ec-income-analysis
+INCOME_TRACTS <- TRACT_STATS |>
+  select(GEOID, ntaname, total_pop) |>
+  left_join(NYC_INCOME, by = "GEOID") |>
+  filter(!is.na(median_income), total_pop > 0)
+
+NTA_INCOME <- INCOME_TRACTS |>
+  group_by(ntaname) |>
+  summarize(med_income = sum(median_income * total_pop) / sum(total_pop),
+            .groups = "drop")
+
+city_income <- sum(INCOME_TRACTS$median_income * INCOME_TRACTS$total_pop) /
+               sum(INCOME_TRACTS$total_pop)
+
+BD_INCOME <- NTA_POP |>
+  slice_max(bangladeshi, n = 10) |>
+  left_join(NTA_INCOME, by = "ntaname") |>
+  select(ntaname, boroname, bangladeshi, med_income)
+
+BD_INCOME |>
+  gt() |>
+  cols_label(ntaname = "Neighborhood", boroname = "Borough",
+             bangladeshi = "Bangladeshi residents",
+             med_income = "Median household income") |>
+  fmt_number(columns = bangladeshi, decimals = 0) |>
+  fmt_currency(columns = med_income, decimals = 0)
+```
+
+
+```{r}
+#| label: ec-edu-load
+load_nyc_education <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("nyc_edu_acs5_", ACS5_YEAR, ".csv"))
+  if (!fs::file_exists(cache_file)) {
+    edu_vars <- c(edu_total = "B15003_001", bach = "B15003_022",
+                  mast = "B15003_023", prof = "B15003_024", doct = "B15003_025")
+    get_acs(geography = "tract", variables = edu_vars,
+            state = "NY", county = NYC_COUNTIES,
+            year = ACS5_YEAR, survey = "acs5") |>
+      select(GEOID, variable, estimate) |>
+      pivot_wider(names_from = variable, values_from = estimate) |>
+      write_csv(cache_file)
+  }
+  read_csv(cache_file, col_types = cols(GEOID = col_character()))
+}
+
+NYC_EDU <- load_nyc_education()
+```
+
+```{r}
+#| label: ec-edu-analysis
+EDU_TRACTS <- NYC_EDU |>
+  mutate(bach_plus = bach + mast + prof + doct) |>
+  left_join(TRACT_NTA |> select(GEOID, ntaname), by = "GEOID")
+
+NTA_EDU <- EDU_TRACTS |>
+  filter(!is.na(ntaname)) |>
+  group_by(ntaname) |>
+  summarize(bach_plus = sum(bach_plus, na.rm = TRUE),
+            edu_total = sum(edu_total, na.rm = TRUE),
+            .groups = "drop") |>
+  mutate(pct_bach_plus = bach_plus / edu_total)
+
+city_bach_plus <- sum(EDU_TRACTS$bach_plus, na.rm = TRUE) /
+                  sum(EDU_TRACTS$edu_total, na.rm = TRUE)
+
+BD_EDU <- NTA_POP |>
+  slice_max(bangladeshi, n = 10) |>
+  left_join(NTA_EDU, by = "ntaname") |>
+  select(ntaname, boroname, bangladeshi, pct_bach_plus)
+
+BD_EDU |>
+  gt() |>
+  cols_label(ntaname = "Neighborhood", boroname = "Borough",
+             bangladeshi = "Bangladeshi residents",
+             pct_bach_plus = "Bachelor's degree or higher") |>
+  fmt_number(columns = bangladeshi, decimals = 0) |>
+  fmt_percent(columns = pct_bach_plus, decimals = 1)
+
+```
+
+### Extra Credit Interactive Graphics
+
+```{r}
+#| label: ec-linked-map-bar
+#| fig-width: 10
+#| fig-height: 5
+library(ggiraph)
+library(patchwork)
+
+bd_nta <- NTA_MAP |>
+  filter(!is.na(bangladeshi)) |>
+  mutate(tip = str_c(ntaname, ": ", comma(bangladeshi), " Bangladeshi"))
+
+top_bd <- bd_nta |>
+  st_drop_geometry() |>
+  slice_max(bangladeshi, n = 15)
+
+map_panel <- ggplot(bd_nta) +
+  geom_sf_interactive(aes(fill = bangladeshi, tooltip = tip, data_id = nta2020),
+                      color = "white", linewidth = 0.05) +
+  scale_fill_gradient(low = "#006a4e", high = "#f42a41",
+                      labels = comma, trans = "sqrt") +
+  labs(fill = "Bangladeshi") +
+  theme_void()
+
+bar_panel <- ggplot(top_bd,
+                    aes(x = bangladeshi, y = reorder(ntaname, bangladeshi))) +
+  geom_col_interactive(aes(tooltip = tip, data_id = nta2020), fill = "#006a4e") +
+  scale_x_continuous(labels = comma) +
+  labs(x = "Bangladeshi residents", y = NULL) +
+  theme_minimal()
+
+girafe(ggobj = map_panel + bar_panel, width_svg = 10, height_svg = 5,
+       options = list(
+         opts_hover(css = "stroke:black;stroke-width:1pt;"),
+         opts_hover_inv(css = "opacity:0.25;")
+       ))
+```
+```{r}
+#| label: atlas-values
+#| include: false
+us_bd       <- US_TOTAL$bangladeshi
+ny_bd       <- CBSA_POP |> slice_max(bangladeshi, n = 1) |> pull(bangladeshi)
+ny_share    <- ny_bd / us_bd
+jamaica_bd  <- NTA_POP |> filter(ntaname == "Jamaica") |> pull(bangladeshi)
+queens_top  <- NTA_POP |> slice_max(bangladeshi, n = 10) |>
+                 count(boroname) |> filter(boroname == "Queens") |> pull(n)
+jamaica_inc <- NTA_INCOME |> filter(ntaname == "Jamaica") |> pull(med_income)
+estates_inc <- NTA_INCOME |> filter(ntaname == "Jamaica Estates-Holliswood") |> pull(med_income)
+bach_min    <- min(BD_EDU$pct_bach_plus)
+bach_max    <- max(BD_EDU$pct_bach_plus)
+```
+
+
+### Task 7 Atlas Communities of Entry
+
+As a Bangladeshi American, I was inspired to research and analyze the Bangladeshi population and learned a lot of new things myself!
+
+The New York metro area is home to `r comma(ny_bd)` of the `r comma(us_bd)` Bangladeshis. That’s about `r percent(ny_share, 1)`, enough to make New York the clear capital of Bangladeshi America.
+
+#### History
+
+The first Bengali immigrants to the U.S included silk merchants in the late 1800s and sailors in the early 1900s, some of whom settled in Harlem. The Immigration Act of 1924 largely blocked immigration from Asia, but the Immigration Act of 1965 ended quotas based on national origin and made it easier for skilled workers and family members to immigrate. After Bangladesh gained independence in 1971, more Bangladeshis came to the U.S. to study, work, or join family. The Immigration Act of 1990 created the Diversity Visa lottery, which helped the community grow, especially in New York City.
+
+Before Bangladesh was a country, Bengali silk merchants were already arriving at Ellis Island. Where did they put down roots?
+
+
+#### Where New York’s Bangladeshi community lives
+
+Jamaica ranks first in the city, with about about `r comma(jamaica_bd)` Bangladeshi residents, `r queens_top` of the ten with the largest Bangladeshi populations are in Queens. Jackson Heights is another hub, but follow the map across borough lines and you’ll find communities in Kensington, Brooklyn, and Parkchester, in the Bronx.
+
+```{r}
+#| label: atlas-bd-map
+ggplot(NTA_MAP) +
+  geom_sf(aes(fill = bangladeshi), color = "white", linewidth = 0.05) +
+  scale_fill_gradient(low = "#006a4e", high = "#f42a41",
+                      labels = comma, trans = "sqrt") +
+  labs(fill = "Bangladeshi residents") +
+  theme_void()
+```
+
+Even within Queens, the neighborhoods can look quite different. The income figure for Jamaica is about `r dollar(round(jamaica_inc, -2))`  compared with $91,600 in nearby Jamaica Estates and `r dollar(round(city_income, -2))` city average. The share of residents with a bachelor’s degree or higher ranges from ranges from `r percent(bach_min, 0.1)` to `r percent(bach_max, 0.1)` in my analysis, compared with `r percent(city_bach_plus, 0.1)` city wide. 
+
+#### Beyond New York
+
+
+```{r}
+#| label: atlas-us-map
+#| fig-width: 9
+#| fig-height: 5
+# US metros sized/colored by Bangladeshi population (bubble map, lower 48).
+
+load_cbsa_geo <- function() {
+  cache_file <- fs::path(DATA_DIR, str_c("cbsa_bd_geo_", ACS5_YEAR, ".gpkg"))
+  if (!fs::file_exists(cache_file)) {
+    get_acs(geography = "cbsa", variables = c(bangladeshi = "B02018_022"),
+            year = ACS5_YEAR, survey = "acs5", geometry = TRUE) |>
+      select(GEOID, NAME, bangladeshi = estimate) |>
+      write_sf(cache_file)
+  }
+  read_sf(cache_file)
+}
+
+load_us_states <- function() {
+  cache_file <- fs::path(DATA_DIR, "us_states.gpkg")
+  if (!fs::file_exists(cache_file)) {
+    get_acs(geography = "state", variables = c(pop = "B01003_001"),
+            year = ACS5_YEAR, survey = "acs5", geometry = TRUE) |>
+      select(GEOID, NAME) |>
+      write_sf(cache_file)
+  }
+  read_sf(cache_file)
+}
+
+CBSA_GEO  <- load_cbsa_geo()
+US_STATES <- load_us_states()
+
+# Contiguous 48 (+ DC); drop AK, HI, PR, and territories.
+drop_fips <- c("02", "15", "60", "66", "69", "72", "78")
+states_48 <- US_STATES |> filter(!substr(GEOID, 1, 2) %in% drop_fips)
+
+# Metro centroids with a Bangladeshi population, cropped to the lower 48.
+metro_pts <- CBSA_GEO |> filter(bangladeshi > 0) |> st_centroid()
+mp_xy <- st_coordinates(metro_pts)
+metro_pts <- metro_pts |>
+  mutate(lon = mp_xy[, 1], lat = mp_xy[, 2]) |>
+  filter(lon > -125, lon < -66, lat > 24, lat < 50)
+
+ggplot() +
+  geom_sf(data = states_48, fill = "#eef3f1", color = "white", linewidth = 0.2) +
+  geom_sf(data = metro_pts, aes(size = bangladeshi, color = bangladeshi),
+          alpha = 0.85) +
+  scale_size_area(max_size = 14, labels = comma) +
+  scale_color_gradient(low = "#006a4e", high = "#f42a41", guide = "none") +
+  coord_sf(crs = 5070) +
+  labs(size = "Bangladeshi residents") +   # TODO: your own title + caption
+  theme_void()
+
+
+```
+
+On the U.S. bubble map, New York stands out, but the population is concentrated well beyond that one metro. The ten metros with the largest Bangladeshi populations together account for about about `r percent(sum(slice_max(CBSA_POP, bangladeshi, n = 10)$bangladeshi) / US_TOTAL$bangladeshi, 2)` of the national total. Look at local population shares instead of head counts, though, and Buffalo moves to the top outside New York, followed by Buffalo, Atlantic City, Detroit, Washington D.C., Bridgeport. Washington is an interesting contrast. It stands out in that comparison, yet Bangladeshis are only about the only about the `r scales::label_ordinal()(which(METRO_ANCESTRY$ancestry == "Bangladeshi"))`largest Asian group in the Washington metro area.
+
+Back in New York one can explore Bangladeshi culture and life here in the Big Apple! Start with the Bangladeshi groceries on Hillside Avenue, stop for fuchka from a cart in Jackson Heights, or head up to Starling Avenue in the Bronx, where a stretch of storefronts became known as Bangla Bazaar.
+
+::: {.callout-note title="AI Usage Statement" collapse="true"}
+
+I mainly used Claude to help with setup, draw inspiration for visuals etc. Helped in setting up the Bangladeshi color themes for the whole project. Claude helped with R formatting for the data pulls, the tract-to-NTA spatial join, PLUTO crosswalk and all the EDA. Claude helped me a lot by explaining concepts  in plain language, and helped debug errors when I tried to render the code chunks. It also helped me with the extra credit work in verifying additional census tables when trying to add them. I wrote the text and atlas entry and final insight analysis my self and this statement.  
+
+:::
